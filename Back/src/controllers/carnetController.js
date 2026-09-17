@@ -1,0 +1,1108 @@
+const QRCode = require("qrcode");
+
+const Carnet = require("../models/Carnet");
+const Vehiculo = require("../models/Vehiculo");
+const User = require("../models/User");
+const CentroFormacion = require("../models/CentroFormacion");
+const SolicitudCarnet = require("../models/aprendiz/SolicitudCarnet");
+const EntradaSalidaAprendiz = require("../models/EntradaSalidaAprendiz");
+
+/* =========================================================
+   GENERAR CARNET
+========================================================= */
+
+const generarCarnet = async (req, res) => {
+  try {
+    const solicitudId = Number(req.params.id);
+
+    if (!Number.isInteger(solicitudId) || solicitudId <= 0) {
+      return res.status(400).json({
+        message: "El ID de la solicitud no es válido"
+      });
+    }
+
+    /* =====================================================
+       BUSCAR SOLICITUD
+    ===================================================== */
+
+    const solicitud = await SolicitudCarnet.findByPk(solicitudId, {
+      include: [
+        {
+          model: User,
+          as: "user"
+        }
+      ]
+    });
+
+    if (!solicitud) {
+      return res.status(404).json({
+        message: "Solicitud no encontrada"
+      });
+    }
+
+    if (solicitud.estado !== "aprobada") {
+      return res.status(400).json({
+        message:
+          "La solicitud debe estar aprobada para generar el carnet"
+      });
+    }
+
+    if (!solicitud.user) {
+      return res.status(404).json({
+        message:
+          "El usuario asociado a la solicitud no existe"
+      });
+    }
+
+    if (!solicitud.user.centroFormacionId) {
+      return res.status(400).json({
+        message:
+          "El usuario no tiene un centro de formación asociado"
+      });
+    }
+
+    /* =====================================================
+       DATOS DE LA SOLICITUD
+    ===================================================== */
+
+    const {
+      tipoVehiculo,
+      marca,
+      color,
+      serialPlaca,
+      cilindraje,
+      modelo,
+      fotoAprendiz,
+      fotoVehiculo
+    } = solicitud;
+
+    /* =====================================================
+       VALIDACIONES
+    ===================================================== */
+
+    if (!tipoVehiculo) {
+      return res.status(400).json({
+        message:
+          "El tipo de vehículo es obligatorio"
+      });
+    }
+
+    if (!marca) {
+      return res.status(400).json({
+        message:
+          "La marca del vehículo es obligatoria"
+      });
+    }
+
+    if (!color) {
+      return res.status(400).json({
+        message:
+          "El color del vehículo es obligatorio"
+      });
+    }
+
+    if (!serialPlaca) {
+      return res.status(400).json({
+        message:
+          "La placa o serial del vehículo es obligatorio"
+      });
+    }
+
+    if (!fotoVehiculo) {
+      return res.status(400).json({
+        message:
+          "La foto del vehículo es obligatoria"
+      });
+    }
+
+    /* =====================================================
+       ACTUALIZAR FOTO DEL APRENDIZ
+       
+       La foto viene de:
+       
+       solicitud.fotoAprendiz
+       
+       y se guarda en:
+       
+       users.foto
+    ===================================================== */
+
+    if (fotoAprendiz) {
+      solicitud.user.foto = fotoAprendiz;
+
+      await solicitud.user.save();
+
+      console.log(
+        "FOTO DEL APRENDIZ GUARDADA:",
+        solicitud.user.foto
+      );
+    } else {
+      console.log(
+        "ADVERTENCIA: la solicitud no tiene fotoAprendiz"
+      );
+
+      console.log(
+        "FOTO ACTUAL DEL USUARIO:",
+        solicitud.user.foto
+      );
+    }
+
+    /* =====================================================
+       GENERAR QR ÚNICO
+    ===================================================== */
+
+    const codigoQr =
+      `SENA-${solicitud.userId}-${Date.now()}-${solicitud.id}`;
+
+    const qrImage =
+      await QRCode.toDataURL(codigoQr);
+
+    /* =====================================================
+       CREAR VEHÍCULO
+    ===================================================== */
+
+    const datosVehiculo = {
+      userId: solicitud.userId,
+
+      tipo: tipoVehiculo,
+
+      id_centro_de_formacion:
+        solicitud.user.centroFormacionId,
+
+      marca:
+        String(marca).trim(),
+
+      color:
+        String(color).trim(),
+
+      serial:
+        tipoVehiculo === "bicicleta"
+          ? String(serialPlaca).trim()
+          : null,
+
+      placa:
+        tipoVehiculo === "moto"
+          ? String(serialPlaca).trim()
+          : null,
+
+      cilindraje:
+        cilindraje
+          ? String(cilindraje).trim()
+          : null,
+
+      modelo:
+        modelo
+          ? String(modelo).trim()
+          : null,
+
+      foto_principal:
+        fotoVehiculo,
+
+      foto_secundaria:
+        fotoVehiculo
+    };
+
+    const vehiculo =
+      await Vehiculo.create(
+        datosVehiculo
+      );
+
+    /* =====================================================
+       CREAR CARNET
+    ===================================================== */
+
+    const carnet =
+      await Carnet.create({
+
+        userId:
+          solicitud.userId,
+
+        vehicleId:
+          vehiculo.id,
+
+        solicitudId:
+          solicitud.id,
+
+        codigoQr,
+
+        estado:
+          "activo"
+      });
+
+    /* =====================================================
+       ACTUALIZAR SOLICITUD
+    ===================================================== */
+
+    solicitud.estado =
+      "carnet_generado";
+
+    await solicitud.save();
+
+    /* =====================================================
+       RESPUESTA
+    ===================================================== */
+
+    return res.status(200).json({
+
+      message:
+        "Carnet generado correctamente",
+
+      carnet,
+
+      vehiculo,
+
+      qrImage,
+
+      user: {
+        id:
+          solicitud.user.id,
+
+        nombres:
+          solicitud.user.nombres,
+
+        apellidos:
+          solicitud.user.apellidos,
+
+        foto:
+          solicitud.user.foto
+      }
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ERROR GENERAR CARNET:",
+      error
+    );
+
+    return res.status(500).json({
+
+      message:
+        "Error al generar el carnet",
+
+      error:
+        error.message
+
+    });
+  }
+};
+
+
+/* =========================================================
+   OBTENER MIS CARNETS
+========================================================= */
+
+const obtenerMiCarnet = async (req, res) => {
+
+  try {
+
+    if (!req.user?.id) {
+      return res.status(401).json({
+        message:
+          "Usuario no autenticado"
+      });
+    }
+
+    const userId =
+      req.user.id;
+
+    /* =====================================================
+       BUSCAR CARNETS
+    ===================================================== */
+
+    const carnets =
+      await Carnet.findAll({
+
+        where: {
+          userId
+        },
+
+        include: [
+
+          /* ===============================================
+             USUARIO
+          =============================================== */
+
+          {
+            model: User,
+
+            as: "user",
+
+            attributes: [
+              "id",
+              "rol",
+              "nombres",
+              "apellidos",
+              "tipoDocumento",
+              "documento",
+              "email",
+              "celular",
+              "ficha",
+              "centroFormacionId",
+              "fechaVinculacion",
+              "fechaFinalizacion",
+              "foto"
+            ],
+
+            include: [
+
+              {
+                model: CentroFormacion,
+
+                as: "centroFormacion"
+              }
+
+            ]
+          },
+
+          /* ===============================================
+             VEHÍCULO
+          =============================================== */
+
+          {
+            model: Vehiculo,
+
+            as: "vehiculo"
+          }
+
+        ],
+
+        order: [
+          ["createdAt", "DESC"]
+        ]
+      });
+
+    /* =====================================================
+       SIN CARNETS
+    ===================================================== */
+
+    if (!carnets.length) {
+
+      return res.status(404).json({
+
+        message:
+          "El usuario no tiene un carnet generado"
+
+      });
+    }
+
+    /* =====================================================
+       ARMAR RESPUESTA
+    ===================================================== */
+
+    const resultado =
+      await Promise.all(
+
+        carnets.map(
+          async (carnet) => {
+
+            const qrImage =
+              await QRCode.toDataURL(
+                carnet.codigoQr
+              );
+
+            /* =============================================
+               FOTO DEL APRENDIZ
+            ============================================= */
+
+            const fotoAprendiz =
+              carnet.user?.foto || null;
+
+            console.log(
+              "===================================="
+            );
+
+            console.log(
+              "CARNET:",
+              carnet.id
+            );
+
+            console.log(
+              "USUARIO:",
+              carnet.userId
+            );
+
+            console.log(
+              "FOTO APRENDIZ:",
+              fotoAprendiz
+            );
+
+            console.log(
+              "===================================="
+            );
+
+            return {
+
+              id:
+                carnet.id,
+
+              estado:
+                carnet.estado,
+
+              codigoQr:
+                carnet.codigoQr,
+
+              solicitudId:
+                carnet.solicitudId,
+
+              vehicleId:
+                carnet.vehicleId,
+
+              qrImage,
+
+              /* =========================================
+                 USUARIO
+              ========================================= */
+
+              user:
+
+                carnet.user
+                  ? {
+
+                      id:
+                        carnet.user.id,
+
+                      rol:
+                        carnet.user.rol,
+
+                      nombres:
+                        carnet.user.nombres,
+
+                      apellidos:
+                        carnet.user.apellidos,
+
+                      tipoDocumento:
+                        carnet.user.tipoDocumento,
+
+                      documento:
+                        carnet.user.documento,
+
+                      email:
+                        carnet.user.email,
+
+                      celular:
+                        carnet.user.celular,
+
+                      ficha:
+                        carnet.user.ficha,
+
+                      centroFormacionId:
+                        carnet.user
+                          .centroFormacionId,
+
+                      centroFormacion:
+                        carnet.user
+                          .centroFormacion,
+
+                      fechaVinculacion:
+                        carnet.user
+                          .fechaVinculacion,
+
+                      fechaFinalizacion:
+                        carnet.user
+                          .fechaFinalizacion,
+
+                      /* =================================
+                         FOTO
+                      ================================= */
+
+                      foto:
+                        fotoAprendiz
+                    }
+
+                  : null,
+
+              /* =========================================
+                 VEHÍCULO
+              ========================================= */
+
+              vehiculo:
+
+                carnet.vehiculo
+                  ? {
+
+                      id:
+                        carnet.vehiculo.id,
+
+                      foto_principal:
+                        carnet.vehiculo
+                          .foto_principal,
+
+                      foto_secundaria:
+                        carnet.vehiculo
+                          .foto_secundaria,
+
+                      tipo:
+                        carnet.vehiculo.tipo,
+
+                      marca:
+                        carnet.vehiculo.marca,
+
+                      color:
+                        carnet.vehiculo.color,
+
+                      serial:
+                        carnet.vehiculo.serial,
+
+                      placa:
+                        carnet.vehiculo.placa,
+
+                      modelo:
+                        carnet.vehiculo.modelo,
+
+                      cilindraje:
+                        carnet.vehiculo.cilindraje
+                    }
+
+                  : null
+            };
+          }
+        )
+      );
+
+    /* =====================================================
+       RESPUESTA
+    ===================================================== */
+
+    return res.status(200).json(
+      resultado
+    );
+
+  } catch (error) {
+
+    console.error(
+      "ERROR OBTENER MIS CARNETS:",
+      error
+    );
+
+    return res.status(500).json({
+
+      message:
+        "Error al obtener los carnets",
+
+      error:
+        error.message
+
+    });
+  }
+};
+
+
+/* =========================================================
+   OBTENER CARNETS PENDIENTES
+========================================================= */
+
+const obtenerPendientes = async (req, res) => {
+
+  try {
+
+    const solicitudes =
+      await SolicitudCarnet.findAll({
+
+        where: {
+          estado: "aprobada"
+        },
+
+        include: [
+
+          {
+            model: User,
+
+            as: "user",
+
+            attributes: [
+              "id",
+              "rol",
+              "nombres",
+              "apellidos",
+              "documento",
+              "ficha",
+              "centroFormacionId",
+              "foto"
+            ],
+
+            include: [
+
+              {
+                model: CentroFormacion,
+
+                as: "centroFormacion"
+              }
+
+            ]
+          }
+
+        ],
+
+        order: [
+          ["createdAt", "DESC"]
+        ]
+      });
+
+    return res.status(200).json(
+      solicitudes
+    );
+
+  } catch (error) {
+
+    console.error(
+      "ERROR OBTENER PENDIENTES:",
+      error
+    );
+
+    return res.status(500).json({
+
+      message:
+        "Error al obtener solicitudes pendientes",
+
+      error:
+        error.message
+
+    });
+  }
+};
+
+
+/* =========================================================
+   ESCANEAR CARNET
+========================================================= */
+
+const escanearCarnet = async (req, res) => {
+
+  try {
+
+    /* =====================================================
+       RECIBIR QR
+    ===================================================== */
+
+    const {
+      codigoQr
+    } = req.body;
+
+    if (
+      !codigoQr ||
+      typeof codigoQr !== "string"
+    ) {
+
+      return res.status(400).json({
+
+        message:
+          "El código QR es obligatorio"
+
+      });
+    }
+
+    const codigo =
+      codigoQr.trim();
+
+    if (!codigo) {
+
+      return res.status(400).json({
+
+        message:
+          "El código QR no puede estar vacío"
+
+      });
+    }
+
+    console.log(
+      "ESCANEANDO QR:",
+      codigo
+    );
+
+    /* =====================================================
+       BUSCAR CARNET
+    ===================================================== */
+
+    const carnet =
+      await Carnet.findOne({
+
+        where: {
+          codigoQr: codigo
+        },
+
+        include: [
+
+          {
+            model: User,
+
+            as: "user",
+
+            attributes: [
+              "id",
+              "rol",
+              "nombres",
+              "apellidos",
+              "tipoDocumento",
+              "documento",
+              "email",
+              "celular",
+              "ficha",
+              "centroFormacionId",
+              "fechaVinculacion",
+              "fechaFinalizacion",
+              "foto"
+            ],
+
+            include: [
+
+              {
+                model: CentroFormacion,
+
+                as: "centroFormacion"
+              }
+
+            ]
+          }
+
+        ]
+      });
+
+    /* =====================================================
+       CARNET NO EXISTE
+    ===================================================== */
+
+    if (!carnet) {
+
+      return res.status(404).json({
+
+        message:
+          "Carnet no encontrado"
+
+      });
+    }
+
+    /* =====================================================
+       VALIDAR ESTADO
+    ===================================================== */
+
+    if (
+      carnet.estado !== "activo"
+    ) {
+
+      return res.status(403).json({
+
+        message:
+          `El carnet está ${carnet.estado}`
+
+      });
+    }
+
+    /* =====================================================
+       BUSCAR VEHÍCULO
+    ===================================================== */
+
+    const vehiculo =
+      await Vehiculo.findOne({
+
+        where: {
+          userId:
+            carnet.userId
+        }
+
+      });
+
+    /* =====================================================
+       ÚLTIMO REGISTRO
+    ===================================================== */
+
+    const ultimoRegistro =
+      await EntradaSalidaAprendiz.findOne({
+
+        where: {
+          id_aprendiz:
+            carnet.userId
+        },
+
+        order: [
+          ["createdAt", "DESC"]
+        ]
+
+      });
+
+    /* =====================================================
+       DETERMINAR ENTRADA / SALIDA
+    ===================================================== */
+
+    let nuevoEstado;
+
+    if (
+      ultimoRegistro &&
+      ultimoRegistro.estado === "dentro"
+    ) {
+
+      nuevoEstado =
+        "fuera";
+
+    } else {
+
+      nuevoEstado =
+        "dentro";
+
+    }
+
+    /* =====================================================
+       FECHA Y HORA
+    ===================================================== */
+
+    const ahora =
+      new Date();
+
+    const fecha =
+      ahora
+        .toISOString()
+        .split("T")[0];
+
+    /* =====================================================
+       CREAR / CERRAR REGISTRO
+    ===================================================== */
+
+    let registro;
+
+    if (
+      nuevoEstado === "dentro"
+    ) {
+
+      registro =
+        await EntradaSalidaAprendiz.create({
+
+          id_aprendiz:
+            carnet.userId,
+
+          id_codigo_gr:
+            null,
+
+          fecha,
+
+          hora_entrada:
+            ahora,
+
+          hora_salida:
+            null,
+
+          estado:
+            "dentro"
+
+        });
+
+    } else {
+
+      if (!ultimoRegistro) {
+
+        return res.status(400).json({
+
+          message:
+            "No existe un registro de entrada abierto"
+
+        });
+      }
+
+      await ultimoRegistro.update({
+
+        hora_salida:
+          ahora,
+
+        estado:
+          "fuera"
+
+      });
+
+      await ultimoRegistro.reload();
+
+      registro =
+        ultimoRegistro;
+    }
+
+    /* =====================================================
+       RESPUESTA
+    ===================================================== */
+
+    return res.status(200).json({
+
+      message:
+        nuevoEstado === "dentro"
+          ? "Entrada registrada correctamente"
+          : "Salida registrada correctamente",
+
+      tipo:
+        nuevoEstado === "dentro"
+          ? "entrada"
+          : "salida",
+
+      estado:
+        nuevoEstado,
+
+      registro: {
+
+        id:
+          registro.id,
+
+        id_aprendiz:
+          registro.id_aprendiz,
+
+        fecha:
+          registro.fecha,
+
+        hora_entrada:
+          registro.hora_entrada,
+
+        hora_salida:
+          registro.hora_salida,
+
+        estado:
+          registro.estado
+      },
+
+      carnet: {
+
+        id:
+          carnet.id,
+
+        estado:
+          carnet.estado,
+
+        codigoQr:
+          carnet.codigoQr
+
+      },
+
+      /* =================================================
+         USUARIO
+      ================================================= */
+
+      user:
+
+        carnet.user
+          ? {
+
+              id:
+                carnet.user.id,
+
+              rol:
+                carnet.user.rol,
+
+              nombres:
+                carnet.user.nombres,
+
+              apellidos:
+                carnet.user.apellidos,
+
+              tipoDocumento:
+                carnet.user.tipoDocumento,
+
+              documento:
+                carnet.user.documento,
+
+              email:
+                carnet.user.email,
+
+              celular:
+                carnet.user.celular,
+
+              ficha:
+                carnet.user.ficha,
+
+              centroFormacionId:
+                carnet.user
+                  .centroFormacionId,
+
+              centroFormacion:
+                carnet.user
+                  .centroFormacion,
+
+              fechaVinculacion:
+                carnet.user
+                  .fechaVinculacion,
+
+              fechaFinalizacion:
+                carnet.user
+                  .fechaFinalizacion,
+
+              foto:
+                carnet.user.foto
+
+            }
+
+          : null,
+
+      /* =================================================
+         VEHÍCULO
+      ================================================= */
+
+      vehiculo:
+
+        vehiculo
+          ? {
+
+              id:
+                vehiculo.id,
+
+              foto_principal:
+                vehiculo.foto_principal,
+
+              foto_secundaria:
+                vehiculo.foto_secundaria,
+
+              tipo:
+                vehiculo.tipo,
+
+              marca:
+                vehiculo.marca,
+
+              color:
+                vehiculo.color,
+
+              serial:
+                vehiculo.serial,
+
+              placa:
+                vehiculo.placa,
+
+              modelo:
+                vehiculo.modelo,
+
+              cilindraje:
+                vehiculo.cilindraje
+
+            }
+
+          : null
+
+    });
+
+  } catch (error) {
+
+    console.error(
+      "ERROR ESCANEAR CARNET:",
+      error
+    );
+
+    return res.status(500).json({
+
+      message:
+        "Error al escanear el carnet",
+
+      error:
+        error.message
+
+    });
+  }
+};
+
+
+/* =========================================================
+   EXPORTAR
+========================================================= */
+
+module.exports = {
+
+  generarCarnet,
+
+  obtenerMiCarnet,
+
+  obtenerPendientes,
+
+  escanearCarnet
+
+};

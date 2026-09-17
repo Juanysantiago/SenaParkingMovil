@@ -1,0 +1,71 @@
+const express = require("express");
+
+const {
+  register,
+  login,
+  getUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+  recuperarPassword,
+  verificarPin,
+  reenviarPin,
+  getCarnet,
+  obtenerMiPerfil,
+  logout,
+  restablecerPassword
+} = require("../controllers/authController");
+
+const verifyToken = require("../middlewares/verifyToken");
+const authorizeRoles = require("../middlewares/roles");
+
+const router = express.Router();
+
+router.post("/restablecer-password", verifyToken, restablecerPassword);
+
+router.post("/register", register);
+router.post("/login", login);
+
+router.post("/recuperar-password", recuperarPassword);
+router.post("/verificar-pin", verificarPin);
+router.post("/reenviar-pin", reenviarPin);
+router.get(
+  "/users",
+  verifyToken,
+  authorizeRoles("administrador"),
+  getUsers
+);
+
+router.get(
+  "/users/:id",
+  verifyToken,
+  getUserById
+);
+
+router.get(
+  "/me",
+  verifyToken,
+  obtenerMiPerfil
+);
+
+router.put(
+  "/users/:id",
+  verifyToken,
+  updateUser
+);
+
+router.delete(
+  "/users/:id",
+  verifyToken,
+  authorizeRoles("administrador"),
+  deleteUser
+);
+
+console.log("verifyToken:", verifyToken);
+console.log("authorizeRoles:", authorizeRoles);
+// CARNET
+router.get("/carnet/:id", verifyToken, getCarnet);
+
+router.post("/logout", logout);
+
+module.exports = router;
