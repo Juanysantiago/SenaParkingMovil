@@ -267,12 +267,11 @@ export default function GenericScreen({
           }
         );
 
-        const r =
-          await resources.requestsCarnet(
-            currentPage,
-            ITEMS_PER_PAGE,
-            search.trim()
-          );
+        const r = await resources.requestsCarnet({
+  page: currentPage,
+  limit: ITEMS_PER_PAGE,
+  search: search.trim(),
+});
 
         console.log(
           'RESPUESTA PETICIONES CARNET:',

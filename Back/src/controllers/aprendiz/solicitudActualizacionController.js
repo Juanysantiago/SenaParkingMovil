@@ -5,9 +5,7 @@ const User = require("../../models/User");
 const Vehiculo = require("../../models/Vehiculo");
 const CentroFormacion = require("../../models/CentroFormacion");
 const Notificacion = require("../../models/Notificacion");
-
 const generarOCrearCarnet = require("../../utils/generarOCrearCarnet");
-
 const sequelize = require("../../config/database");
 
 // ============================================================
@@ -15,13 +13,91 @@ const sequelize = require("../../config/database");
 // ============================================================
 
 const normalizarRuta = (ruta) => {
-  if (!ruta) {
-    return null;
-  }
+  if (!ruta) return null;
 
   return String(ruta)
     .replace(/\\/g, "/")
-    .replace(/^.*?uploads\//, "uploads/");
+    .replace(/^.*?uploads[\\/]/i, "uploads/");
+};
+
+// ============================================================
+// CONVERTIR JSON DE FORMA SEGURA
+// ============================================================
+
+const convertirObjeto = (valor) => {
+  if (!valor) return {};
+
+  if (typeof valor === "object") {
+    return valor;
+  }
+
+  if (typeof valor === "string") {
+    try {
+      const resultado = JSON.parse(valor);
+
+      if (
+        resultado &&
+        typeof resultado === "object"
+      ) {
+        return resultado;
+      }
+    } catch (error) {
+      return {};
+    }
+  }
+
+  return {};
+};
+
+// ============================================================
+// DATOS PERSONALES ACTUALES DEL USUARIO
+// ============================================================
+
+const obtenerDatosPersonalesActuales = (usuario) => {
+  return {
+    nombres: usuario.nombres || "",
+    apellidos: usuario.apellidos || "",
+    documento: usuario.documento || "",
+    tipoDocumento: usuario.tipoDocumento || "",
+    celular: usuario.celular || "",
+    ficha: usuario.ficha || "",
+    centroFormacionId:
+      usuario.centroFormacionId || "",
+    fechaVinculacion:
+      usuario.fechaVinculacion || "",
+    fechaFinalizacion:
+      usuario.fechaFinalizacion || "",
+  };
+};
+
+// ============================================================
+// DATOS DEL VEHÍCULO ACTUALES
+// ============================================================
+
+const obtenerDatosVehiculoActuales = (vehiculo) => {
+  if (!vehiculo) {
+    return {};
+  }
+
+  const tipo =
+    vehiculo.tipo ||
+    vehiculo.tipoVehiculo ||
+    "";
+
+  return {
+    vehiculoId: vehiculo.id || "",
+    tipoVehiculo: tipo,
+    marca: vehiculo.marca || "",
+    color: vehiculo.color || "",
+    serialPlaca:
+      vehiculo.placa ||
+      vehiculo.serial ||
+      "",
+    cilindraje:
+      vehiculo.cilindraje || "",
+    modelo:
+      vehiculo.modelo || "",
+  };
 };
 
 // ============================================================
@@ -61,45 +137,10 @@ const crearSolicitud = async (req, res) => {
     }
 
     // ----------------------------------------------------------
-    // CONVERTIR JSON
+    // CONVERTIR DATOS NUEVOS
     // ----------------------------------------------------------
 
-    if (typeof datosActuales === "string") {
-      try {
-        datosActuales = JSON.parse(
-          datosActuales
-        );
-      } catch (error) {
-        return res.status(400).json({
-          message:
-            "Los datos actuales no tienen un formato válido",
-        });
-      }
-    }
-
-    if (typeof datosNuevos === "string") {
-      try {
-        datosNuevos = JSON.parse(
-          datosNuevos
-        );
-      } catch (error) {
-        return res.status(400).json({
-          message:
-            "Los datos nuevos no tienen un formato válido",
-        });
-      }
-    }
-
-    // ----------------------------------------------------------
-    // VALIDAR DATOS
-    // ----------------------------------------------------------
-
-    if (
-      !datosActuales ||
-      typeof datosActuales !== "object"
-    ) {
-      datosActuales = {};
-    }
+    datosNuevos = convertirObjeto(datosNuevos);
 
     if (
       !datosNuevos ||
@@ -115,34 +156,98 @@ const crearSolicitud = async (req, res) => {
     // BUSCAR USUARIO
     // ----------------------------------------------------------
 
-    const usuario =
-      await User.findByPk(req.user.id);
+    const usuario = await User.findByPk(
+      req.user.id
+    );
 
     if (!usuario) {
       return res.status(404).json({
-        message:
-          "Usuario no encontrado",
+        message: "Usuario no encontrado",
       });
     }
 
-    // ----------------------------------------------------------
+    // ==========================================================
+    // IMPORTANTE:
+    // LOS DATOS ANTERIORES SE SACAN DE LA BASE DE DATOS
+    // Y NO DEL CELULAR.
+    // ==========================================================
+
+    let datosAnterioresReales = {};
+
+    // ==========================================================
+    // ACTUALIZACIÓN DE DATOS PERSONALES
+    // ==========================================================
+
+    if (tipo === "datos_personales") {
+      datosAnterioresReales =
+        obtenerDatosPersonalesActuales(
+          usuario
+        );
+    }
+
+    // ==========================================================
+    // ACTUALIZACIÓN DE VEHÍCULO
+    // ==========================================================
+
+    if (tipo === "datos_vehiculo") {
+      let vehiculoId =
+        datosNuevos.vehiculoId;
+
+      let vehiculo;
+
+      if (vehiculoId) {
+        vehiculo = await Vehiculo.findOne({
+          where: {
+            id: Number(vehiculoId),
+            userId: req.user.id,
+          },
+        });
+      }
+
+      // Si no viene ID, buscamos el primer vehículo
+      if (!vehiculo) {
+        vehiculo = await Vehiculo.findOne({
+          where: {
+            userId: req.user.id,
+          },
+          order: [["id", "ASC"]],
+        });
+      }
+
+      if (!vehiculo) {
+        return res.status(404).json({
+          message:
+            "El usuario no tiene un vehículo registrado",
+        });
+      }
+
+      // Guardamos el ID real del vehículo
+      datosNuevos.vehiculoId =
+        vehiculo.id;
+
+      datosAnterioresReales =
+        obtenerDatosVehiculoActuales(
+          vehiculo
+        );
+    }
+
+    // ==========================================================
     // FOTO
-    // ----------------------------------------------------------
+    // ==========================================================
 
     const archivoFoto =
       req.files?.fotoNueva?.[0] || null;
 
-    const fotoNueva =
-      archivoFoto
-        ? normalizarRuta(
-            archivoFoto.path ||
+    const fotoNueva = archivoFoto
+      ? normalizarRuta(
+          archivoFoto.path ||
             archivoFoto.filename
-          )
-        : null;
+        )
+      : null;
 
-    // ----------------------------------------------------------
+    // ==========================================================
     // DOCUMENTOS
-    // ----------------------------------------------------------
+    // ==========================================================
 
     const tiposDocumentos =
       Array.isArray(
@@ -150,48 +255,48 @@ const crearSolicitud = async (req, res) => {
       )
         ? req.body.documentosTipos
         : req.body.documentosTipos
-          ? [req.body.documentosTipos]
-          : [];
+        ? [req.body.documentosTipos]
+        : [];
 
-    const documentos =
-      (req.files?.documentos || []).map(
-        (archivo, i) => ({
-          tipo:
-            String(
-              tiposDocumentos[i] ||
-              "general"
-            )
-              .trim()
-              .toLowerCase(),
+    const documentos = (
+      req.files?.documentos || []
+    ).map((archivo, i) => ({
+      tipo: String(
+        tiposDocumentos[i] ||
+          "general"
+      )
+        .trim()
+        .toLowerCase(),
 
-          nombre:
-            archivo.originalname,
+      nombre:
+        archivo.originalname,
 
-          ruta:
-            normalizarRuta(
-              archivo.path ||
-              archivo.filename
-            ),
+      ruta: normalizarRuta(
+        archivo.path ||
+          archivo.filename
+      ),
 
-          mimeType:
-            archivo.mimetype,
+      mimeType:
+        archivo.mimetype,
 
-          tamaño:
-            archivo.size,
-        })
-      );
+      tamaño:
+        archivo.size,
+    }));
 
-    // ----------------------------------------------------------
+    // ==========================================================
     // CREAR SOLICITUD
-    // ----------------------------------------------------------
+    // ==========================================================
 
     const solicitud =
       await SolicitudActualizacion.create({
         userId: req.user.id,
-
         tipo,
 
-        datosActuales,
+        // IMPORTANTE:
+        // SIEMPRE GUARDAMOS EL ESTADO REAL
+        // ANTES DE LA ACTUALIZACIÓN.
+        datosActuales:
+          datosAnterioresReales,
 
         datosNuevos,
 
@@ -206,9 +311,27 @@ const crearSolicitud = async (req, res) => {
       message:
         "Solicitud enviada correctamente",
 
-      solicitud,
-    });
+      solicitud: {
+        id: solicitud.id,
+        userId: solicitud.userId,
+        tipo: solicitud.tipo,
 
+        datosActuales:
+          datosAnterioresReales,
+
+        datosNuevos,
+
+        fotoNueva,
+
+        documentos,
+
+        estado:
+          solicitud.estado,
+
+        createdAt:
+          solicitud.createdAt,
+      },
+    });
   } catch (error) {
     console.error(
       "ERROR CREAR SOLICITUD:",
@@ -224,12 +347,10 @@ const crearSolicitud = async (req, res) => {
           "Los datos de la solicitud no son válidos",
 
         errores:
-          error.errors.map(
-            (e) => ({
-              campo: e.path,
-              mensaje: e.message,
-            })
-          ),
+          error.errors.map((e) => ({
+            campo: e.path,
+            mensaje: e.message,
+          })),
       });
     }
 
@@ -245,20 +366,6 @@ const crearSolicitud = async (req, res) => {
 
 // ============================================================
 // LISTAR SOLICITUDES
-//
-// Soporta:
-//
-// ?page=1
-// ?limit=10
-// ?search=123456789
-//
-// search busca por:
-// - Documento del aprendiz
-//
-// Devuelve:
-// - 10 registros por página
-// - total
-// - totalPages
 // ============================================================
 
 const listarSolicitudes = async (
@@ -266,21 +373,15 @@ const listarSolicitudes = async (
   res
 ) => {
   try {
-    // ----------------------------------------------------------
-    // PAGINACIÓN
-    // ----------------------------------------------------------
+    let page = parseInt(
+      req.query.page,
+      10
+    );
 
-    let page =
-      parseInt(
-        req.query.page,
-        10
-      );
-
-    let limit =
-      parseInt(
-        req.query.limit,
-        10
-      );
+    let limit = parseInt(
+      req.query.limit,
+      10
+    );
 
     if (
       !Number.isInteger(page) ||
@@ -300,24 +401,19 @@ const listarSolicitudes = async (
     const offset =
       (page - 1) * limit;
 
-    // ----------------------------------------------------------
-    // BÚSQUEDA
-    // ----------------------------------------------------------
+    const search = String(
+      req.query.search || ""
+    ).trim();
 
-    const search =
-      String(
-        req.query.search || ""
-      ).trim();
+    const where = {};
 
-    // ----------------------------------------------------------
+    // ==========================================================
     // INCLUDE USUARIO
-    // ----------------------------------------------------------
+    // ==========================================================
 
     const includeUser = {
       model: User,
-
       as: "user",
-
       required: true,
 
       attributes: [
@@ -340,9 +436,7 @@ const listarSolicitudes = async (
       include: [
         {
           model: CentroFormacion,
-
           as: "centroFormacion",
-
           required: false,
 
           attributes: [
@@ -356,85 +450,133 @@ const listarSolicitudes = async (
 
         {
           model: Vehiculo,
-
           as: "vehiculos",
-
           required: false,
         },
       ],
     };
 
-    // ----------------------------------------------------------
-    // WHERE
-    // ----------------------------------------------------------
-
-    const where = {};
+    // ==========================================================
+    // BÚSQUEDA
+    // ==========================================================
 
     if (search) {
-      where["$user.documento$"] = {
-        [Op.like]: `%${search}%`,
-      };
+      where[Op.or] = [
+        {
+          "$user.documento$": {
+            [Op.like]:
+              `%${search}%`,
+          },
+        },
+
+        {
+          "$user.nombres$": {
+            [Op.like]:
+              `%${search}%`,
+          },
+        },
+
+        {
+          "$user.apellidos$": {
+            [Op.like]:
+              `%${search}%`,
+          },
+        },
+
+        {
+          "$user.email$": {
+            [Op.like]:
+              `%${search}%`,
+          },
+        },
+
+        {
+          "$user.ficha$": {
+            [Op.like]:
+              `%${search}%`,
+          },
+        },
+      ];
     }
 
-    // ----------------------------------------------------------
-    // CONSULTAR
-    // ----------------------------------------------------------
+    // ==========================================================
+    // CONSULTA
+    // ==========================================================
 
     const resultado =
-      await SolicitudActualizacion.findAndCountAll({
-        where,
+      await SolicitudActualizacion.findAndCountAll(
+        {
+          where,
 
-        include: [
-          includeUser,
-        ],
+          include: [
+            includeUser,
+          ],
 
-        order: [
-          ["createdAt", "DESC"],
-        ],
+          order: [
+            ["createdAt", "DESC"],
+          ],
 
-        limit,
+          limit,
+          offset,
 
-        offset,
-
-        distinct: true,
-      });
-
-    // ----------------------------------------------------------
-    // TOTAL
-    // ----------------------------------------------------------
-
-    const total =
-      Number(
-        resultado.count || 0
+          distinct: true,
+        }
       );
+
+    const solicitudes =
+      resultado.rows.map(
+        (solicitud) => {
+          const item =
+            solicitud.toJSON();
+
+          item.datosActuales =
+            convertirObjeto(
+              item.datosActuales
+            );
+
+          item.datosNuevos =
+            convertirObjeto(
+              item.datosNuevos
+            );
+
+          item.documentos =
+            Array.isArray(
+              item.documentos
+            )
+              ? item.documentos
+              : convertirObjeto(
+                  item.documentos
+                );
+
+          return item;
+        }
+      );
+
+    const total = Number(
+      resultado.count || 0
+    );
 
     const totalPages =
-      Math.max(
-        1,
-        Math.ceil(
-          total / limit
-        )
+      Math.ceil(
+        total / limit
       );
 
-    // ----------------------------------------------------------
-    // RESPUESTA
-    // ----------------------------------------------------------
-
     return res.status(200).json({
-      data:
-        resultado.rows,
+      data: solicitudes,
 
       pagination: {
         page,
-
         limit,
-
         total,
-
         totalPages,
+
+        hasNextPage:
+          page < totalPages,
+
+        hasPreviousPage:
+          page > 1,
       },
     });
-
   } catch (error) {
     console.error(
       "ERROR LISTAR SOLICITUDES:",
@@ -462,30 +604,8 @@ const aprobarSolicitud = async (
   let transaction;
 
   try {
-    console.log("");
-    console.log(
-      "=============================================="
-    );
-    console.log(
-      "INICIO APROBACIÓN"
-    );
-    console.log(
-      "=============================================="
-    );
-
-    // ----------------------------------------------------------
-    // VALIDAR ID
-    // ----------------------------------------------------------
-
     const solicitudId =
-      Number(
-        req.params.id
-      );
-
-    console.log(
-      "ID SOLICITUD:",
-      solicitudId
-    );
+      Number(req.params.id);
 
     if (
       !Number.isInteger(
@@ -499,20 +619,8 @@ const aprobarSolicitud = async (
       });
     }
 
-    // ----------------------------------------------------------
-    // CREAR TRANSACCIÓN
-    // ----------------------------------------------------------
-
     transaction =
       await sequelize.transaction();
-
-    console.log(
-      "TRANSACCIÓN INICIADA"
-    );
-
-    // ----------------------------------------------------------
-    // BUSCAR SOLICITUD
-    // ----------------------------------------------------------
 
     const solicitud =
       await SolicitudActualizacion.findByPk(
@@ -534,18 +642,6 @@ const aprobarSolicitud = async (
       });
     }
 
-    console.log(
-      "SOLICITUD ENCONTRADA:"
-    );
-
-    console.log(
-      solicitud.toJSON()
-    );
-
-    // ----------------------------------------------------------
-    // VALIDAR ESTADO
-    // ----------------------------------------------------------
-
     if (
       solicitud.estado !==
       "pendiente"
@@ -557,10 +653,6 @@ const aprobarSolicitud = async (
           `La solicitud ya fue ${solicitud.estado}`,
       });
     }
-
-    // ----------------------------------------------------------
-    // BUSCAR USUARIO
-    // ----------------------------------------------------------
 
     const usuario =
       await User.findByPk(
@@ -579,43 +671,10 @@ const aprobarSolicitud = async (
       });
     }
 
-    console.log(
-      "USUARIO ENCONTRADO:"
-    );
-
-    console.log(
-      usuario.toJSON()
-    );
-
-    // ----------------------------------------------------------
-    // LEER DATOS NUEVOS
-    // ----------------------------------------------------------
-
     let datos =
-      solicitud.datosNuevos ||
-      {};
-
-    if (typeof datos === "string") {
-      try {
-        datos =
-          JSON.parse(datos);
-      } catch (error) {
-        await transaction.rollback();
-
-        return res.status(400).json({
-          message:
-            "Los datos nuevos tienen un formato inválido",
-        });
-      }
-    }
-
-    console.log(
-      "DATOS NUEVOS:"
-    );
-
-    console.log(
-      datos
-    );
+      convertirObjeto(
+        solicitud.datosNuevos
+      );
 
     let usuarioActualizado =
       null;
@@ -631,12 +690,7 @@ const aprobarSolicitud = async (
       solicitud.tipo ===
       "datos_personales"
     ) {
-      console.log(
-        "ACTUALIZANDO DATOS PERSONALES"
-      );
-
-      const datosUsuario =
-        {};
+      const datosUsuario = {};
 
       const camposPermitidos = [
         "nombres",
@@ -655,8 +709,7 @@ const aprobarSolicitud = async (
           if (
             datos[campo] !==
               undefined &&
-            datos[campo] !==
-              null &&
+            datos[campo] !== null &&
             datos[campo] !== ""
           ) {
             datosUsuario[campo] =
@@ -665,28 +718,14 @@ const aprobarSolicitud = async (
         }
       );
 
-      // --------------------------------------------------------
-      // FOTO
-      // --------------------------------------------------------
-
-      if (solicitud.fotoNueva) {
+      if (
+        solicitud.fotoNueva
+      ) {
         datosUsuario.foto =
           normalizarRuta(
             solicitud.fotoNueva
           );
       }
-
-      console.log(
-        "DATOS QUE SE GUARDARÁN EN USERS:"
-      );
-
-      console.log(
-        datosUsuario
-      );
-
-      // --------------------------------------------------------
-      // VALIDAR DATOS
-      // --------------------------------------------------------
 
       if (
         Object.keys(
@@ -701,32 +740,17 @@ const aprobarSolicitud = async (
         });
       }
 
-      // --------------------------------------------------------
-      // UPDATE USUARIO
-      // --------------------------------------------------------
-
-      console.log(
-        "EJECUTANDO UPDATE Users..."
-      );
-
       const [
         filasActualizadas,
-      ] =
-        await User.update(
-          datosUsuario,
-          {
-            where: {
-              id:
-                solicitud.userId,
-            },
+      ] = await User.update(
+        datosUsuario,
+        {
+          where: {
+            id: solicitud.userId,
+          },
 
-            transaction,
-          }
-        );
-
-      console.log(
-        "FILAS USERS ACTUALIZADAS:",
-        filasActualizadas
+          transaction,
+        }
       );
 
       if (
@@ -740,10 +764,6 @@ const aprobarSolicitud = async (
         });
       }
 
-      // --------------------------------------------------------
-      // RECARGAR USUARIO
-      // --------------------------------------------------------
-
       usuarioActualizado =
         await User.findByPk(
           solicitud.userId,
@@ -751,14 +771,6 @@ const aprobarSolicitud = async (
             transaction,
           }
         );
-
-      console.log(
-        "USUARIO DESPUÉS DEL UPDATE:"
-      );
-
-      console.log(
-        usuarioActualizado.toJSON()
-      );
     }
 
     // ==========================================================
@@ -769,32 +781,6 @@ const aprobarSolicitud = async (
       solicitud.tipo ===
       "datos_vehiculo"
     ) {
-      console.log(
-        "ACTUALIZANDO VEHÍCULO"
-      );
-
-      // --------------------------------------------------------
-      // VALIDAR TIPO
-      // --------------------------------------------------------
-
-      if (
-        datos.tipoVehiculo !==
-          "bicicleta" &&
-        datos.tipoVehiculo !==
-          "moto"
-      ) {
-        await transaction.rollback();
-
-        return res.status(400).json({
-          message:
-            "El tipo de vehículo no es válido",
-        });
-      }
-
-      // --------------------------------------------------------
-      // BUSCAR VEHÍCULO
-      // --------------------------------------------------------
-
       const whereVehiculo = {
         userId:
           solicitud.userId,
@@ -803,8 +789,7 @@ const aprobarSolicitud = async (
       if (
         datos.vehiculoId !==
           undefined &&
-        datos.vehiculoId !==
-          null &&
+        datos.vehiculoId !== null &&
         datos.vehiculoId !== ""
       ) {
         const vehiculoId =
@@ -847,80 +832,83 @@ const aprobarSolicitud = async (
         });
       }
 
-      console.log(
-        "VEHÍCULO ACTUAL:"
-      );
+      const tipoVehiculo =
+        datos.tipoVehiculo ||
+        vehiculo.tipo ||
+        vehiculo.tipoVehiculo;
 
-      console.log(
-        vehiculo.toJSON()
-      );
+      if (
+        tipoVehiculo !==
+          "bicicleta" &&
+        tipoVehiculo !==
+          "moto"
+      ) {
+        await transaction.rollback();
 
-      // --------------------------------------------------------
-      // DATOS DEL VEHÍCULO
-      // --------------------------------------------------------
+        return res.status(400).json({
+          message:
+            "El tipo de vehículo no es válido",
+        });
+      }
 
       const datosVehiculo = {
         tipo:
-          datos.tipoVehiculo,
+          tipoVehiculo,
 
         marca:
-          datos.marca,
+          datos.marca ??
+          vehiculo.marca ??
+          null,
 
         color:
-          datos.color,
+          datos.color ??
+          vehiculo.color ??
+          null,
 
         cilindraje:
-          datos.tipoVehiculo ===
-          "moto"
-            ? datos.cilindraje ||
+          tipoVehiculo === "moto"
+            ? datos.cilindraje ??
+              vehiculo.cilindraje ??
               null
             : null,
 
         modelo:
-          datos.tipoVehiculo ===
-          "moto"
-            ? datos.modelo ||
+          tipoVehiculo === "moto"
+            ? datos.modelo ??
+              vehiculo.modelo ??
               null
             : null,
       };
 
-      // --------------------------------------------------------
-      // BICICLETA
-      // --------------------------------------------------------
-
       if (
-        datos.tipoVehiculo ===
+        tipoVehiculo ===
         "bicicleta"
       ) {
         datosVehiculo.serial =
-          datos.serialPlaca ||
+          datos.serialPlaca ??
+          vehiculo.serial ??
           null;
 
         datosVehiculo.placa =
           null;
       }
 
-      // --------------------------------------------------------
-      // MOTO
-      // --------------------------------------------------------
-
       if (
-        datos.tipoVehiculo ===
+        tipoVehiculo ===
         "moto"
       ) {
         datosVehiculo.placa =
-          datos.serialPlaca ||
+          datos.serialPlaca ??
+          vehiculo.placa ??
           null;
 
         datosVehiculo.serial =
           null;
       }
 
-      // --------------------------------------------------------
-      // FOTO
-      // --------------------------------------------------------
-
-      if (solicitud.fotoNueva) {
+      if (
+        solicitud.fotoNueva
+      ) {
         datosVehiculo.foto_principal =
           normalizarRuta(
             solicitud.fotoNueva
@@ -932,36 +920,17 @@ const aprobarSolicitud = async (
           );
       }
 
-      console.log(
-        "DATOS QUE SE GUARDARÁN EN VEHICULOS:"
-      );
-
-      console.log(
-        datosVehiculo
-      );
-
-      // --------------------------------------------------------
-      // UPDATE VEHÍCULO
-      // --------------------------------------------------------
-
       const [
         filasActualizadas,
-      ] =
-        await Vehiculo.update(
-          datosVehiculo,
-          {
-            where: {
-              id:
-                vehiculo.id,
-            },
+      ] = await Vehiculo.update(
+        datosVehiculo,
+        {
+          where: {
+            id: vehiculo.id,
+          },
 
-            transaction,
-          }
-        );
-
-      console.log(
-        "FILAS VEHÍCULOS ACTUALIZADAS:",
-        filasActualizadas
+          transaction,
+        }
       );
 
       if (
@@ -975,10 +944,6 @@ const aprobarSolicitud = async (
         });
       }
 
-      // --------------------------------------------------------
-      // RECARGAR VEHÍCULO
-      // --------------------------------------------------------
-
       vehiculoActualizado =
         await Vehiculo.findByPk(
           vehiculo.id,
@@ -986,23 +951,11 @@ const aprobarSolicitud = async (
             transaction,
           }
         );
-
-      console.log(
-        "VEHÍCULO DESPUÉS DEL UPDATE:"
-      );
-
-      console.log(
-        vehiculoActualizado.toJSON()
-      );
     }
 
     // ==========================================================
     // ACTUALIZAR ESTADO
     // ==========================================================
-
-    console.log(
-      "ACTUALIZANDO ESTADO DE SOLICITUD..."
-    );
 
     const [
       solicitudActualizada,
@@ -1012,20 +965,15 @@ const aprobarSolicitud = async (
           estado:
             "aprobada",
         },
+
         {
           where: {
-            id:
-              solicitudId,
+            id: solicitudId,
           },
 
           transaction,
         }
       );
-
-    console.log(
-      "FILAS SOLICITUD ACTUALIZADAS:",
-      solicitudActualizada
-    );
 
     if (
       solicitudActualizada !== 1
@@ -1039,32 +987,32 @@ const aprobarSolicitud = async (
     }
 
     // ==========================================================
-    // CONFIRMAR TRANSACCIÓN
+    // COMMIT
     // ==========================================================
 
     await transaction.commit();
-
-    console.log(
-      "TRANSACCIÓN CONFIRMADA"
-    );
 
     // ==========================================================
     // REGENERAR CARNET
     // ==========================================================
 
-    console.log(
-      "REGENERANDO CARNET..."
-    );
+    let resultadoCarnet = {
+      carnet: null,
+      qrImage: null,
+    };
 
-    const resultadoCarnet =
-      await generarOCrearCarnet(
-        solicitud.userId,
-        solicitud.id
+    try {
+      resultadoCarnet =
+        await generarOCrearCarnet(
+          solicitud.userId,
+          solicitud.id
+        );
+    } catch (errorCarnet) {
+      console.error(
+        "ERROR REGENERANDO CARNET:",
+        errorCarnet
       );
-
-    console.log(
-      "CARNET REGENERADO"
-    );
+    }
 
     // ==========================================================
     // NOTIFICACIÓN
@@ -1077,22 +1025,6 @@ const aprobarSolicitud = async (
       mensaje:
         "Datos actualizados y carnet regenerado correctamente.",
     });
-
-    console.log(
-      "NOTIFICACIÓN CREADA"
-    );
-
-    console.log(
-      "=============================================="
-    );
-
-    console.log(
-      "APROBACIÓN COMPLETADA"
-    );
-
-    console.log(
-      "=============================================="
-    );
 
     return res.status(200).json({
       message:
@@ -1108,42 +1040,15 @@ const aprobarSolicitud = async (
       qrImage:
         resultadoCarnet.qrImage,
     });
-
   } catch (error) {
-    console.error("");
     console.error(
-      "=============================================="
-    );
-
-    console.error(
-      "ERROR APROBANDO SOLICITUD"
-    );
-
-    console.error(
-      "MENSAJE:",
-      error.message
-    );
-
-    console.error(
-      "ERROR COMPLETO:",
+      "ERROR APROBANDO SOLICITUD:",
       error
     );
-
-    console.error(
-      "=============================================="
-    );
-
-    // ----------------------------------------------------------
-    // ROLLBACK
-    // ----------------------------------------------------------
 
     if (transaction) {
       try {
         await transaction.rollback();
-
-        console.log(
-          "TRANSACCIÓN REVERTIDA"
-        );
       } catch (rollbackError) {
         console.error(
           "ERROR EN ROLLBACK:",
@@ -1172,9 +1077,7 @@ const rechazarSolicitud = async (
 ) => {
   try {
     const solicitudId =
-      Number(
-        req.params.id
-      );
+      Number(req.params.id);
 
     if (
       !Number.isInteger(
@@ -1227,7 +1130,6 @@ const rechazarSolicitud = async (
       message:
         "Solicitud rechazada correctamente",
     });
-
   } catch (error) {
     console.error(
       "ERROR RECHAZAR SOLICITUD:",
@@ -1254,3 +1156,4 @@ module.exports = {
   aprobarSolicitud,
   rechazarSolicitud,
 };
+

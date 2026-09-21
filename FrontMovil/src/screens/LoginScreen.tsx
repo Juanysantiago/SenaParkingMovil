@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
 import { RootStackParamList } from '../../App';
 import { auth, messageOf } from '../data/api';
 import { colors, common } from '../theme';
@@ -34,20 +35,37 @@ export default function LoginScreen({ navigation }: P) {
     setLoading(true);
 
     try {
-      const r = await auth.login(email, password, rol);
+      const r = await auth.login(email.trim(), password, rol);
+
+      console.log('LOGIN RESPUESTA:', r.data);
+
+      if (!r.data?.accessToken) {
+        setError(
+          r.data?.message ||
+            'El servidor no devolvió el token de acceso'
+        );
+        return;
+      }
 
       await AsyncStorage.setItem(
         'accessToken',
         r.data.accessToken
       );
 
-      await AsyncStorage.setItem(
-        'user',
-        JSON.stringify(r.data.user)
-      );
+      if (r.data.user) {
+        await AsyncStorage.setItem(
+          'user',
+          JSON.stringify(r.data.user)
+        );
+      }
 
       navigation.replace('Dashboard');
-    } catch (e) {
+    } catch (e: any) {
+      console.log(
+        'ERROR LOGIN:',
+        e?.response?.data || e?.message || e
+      );
+
       setError(messageOf(e));
     } finally {
       setLoading(false);
@@ -111,7 +129,11 @@ export default function LoginScreen({ navigation }: P) {
               marginBottom: 5,
             }}
           >
-            {['aprendiz', 'guarda', 'administrador'].map((x) => (
+            {[
+              'aprendiz',
+              'guarda',
+              'administrador',
+            ].map((x) => (
               <TouchableOpacity
                 key={x}
                 onPress={() => setRol(x)}
@@ -153,6 +175,7 @@ export default function LoginScreen({ navigation }: P) {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoCorrect={false}
           />
 
           <Field
@@ -175,7 +198,15 @@ export default function LoginScreen({ navigation }: P) {
           </View>
 
           {error ? (
-            <Text style={common.error}>
+            <Text
+              style={[
+                common.error,
+                {
+                  marginTop: 12,
+                  textAlign: 'center',
+                },
+              ]}
+            >
               {error}
             </Text>
           ) : null}
@@ -217,7 +248,6 @@ export default function LoginScreen({ navigation }: P) {
               </Text>
             </TouchableOpacity>
 
-            {/* VOLVER AL INICIO */}
             <TouchableOpacity
               onPress={() =>
                 navigation.navigate('Home')

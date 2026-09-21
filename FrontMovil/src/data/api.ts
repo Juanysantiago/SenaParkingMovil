@@ -6,7 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
    ========================================================= */
 
 export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'http://10.233.15.141:3000';
+  process.env.EXPO_PUBLIC_API_URL ||
+  'http://10.81.233.141:3000';
 
 /* =========================================================
    AXIOS
@@ -24,19 +25,26 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
+     const token = await AsyncStorage.getItem('accessToken');
 
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-      }
+console.log('🔑 TOKEN GUARDADO:', token ? 'SÍ' : 'NO');
+
+if (token) {
+  config.headers = config.headers || {};
+  config.headers.Authorization = `Bearer ${token}`;
+
+  console.log(
+    '🔐 AUTH ENVIADO:',
+    `Bearer ${token.substring(0, 20)}...`
+  );
+}
 
       /*
-       * IMPORTANTE:
-       * Cuando enviamos FormData NO debemos establecer
-       * manualmente Content-Type.
+       * Cuando enviamos FormData no establecemos manualmente
+       * Content-Type.
        *
        * React Native/Axios genera automáticamente:
+       *
        * multipart/form-data; boundary=...
        */
 
@@ -46,8 +54,14 @@ api.interceptors.request.use(
           delete config.headers['content-type'];
         }
       }
+
+      console.log(
+        '➡️ PETICIÓN:',
+        config.method?.toUpperCase(),
+        `${config.baseURL}${config.url}`
+      );
     } catch (error) {
-      console.log('Error en interceptor:', error);
+      console.log('❌ Error en interceptor:', error);
     }
 
     return config;
@@ -62,9 +76,24 @@ api.interceptors.request.use(
    ========================================================= */
 
 export const messageOf = (error: any): string => {
+  console.log('❌ ERROR AXIOS:', error);
+
+  if (error?.response) {
+    console.log('Status:', error.response.status);
+    console.log('Data:', error.response.data);
+
+    return (
+      error.response.data?.message ||
+      error.response.data?.error ||
+      `Error del servidor (${error.response.status})`
+    );
+  }
+
+  if (error?.request) {
+    return 'No se pudo conectar con el servidor. Verifica que el backend esté encendido y que el celular/PC estén en la misma red.';
+  }
+
   return (
-    error?.response?.data?.message ||
-    error?.response?.data?.error ||
     error?.message ||
     'Error de conexión con el servidor'
   );
@@ -74,7 +103,9 @@ export const messageOf = (error: any): string => {
    URL PARA ARCHIVOS / FOTOS
    ========================================================= */
 
-export const fileUrl = (name?: string | null): string => {
+export const fileUrl = (
+  name?: string | null
+): string => {
   if (!name) {
     return '';
   }
@@ -85,7 +116,10 @@ export const fileUrl = (name?: string | null): string => {
     return '';
   }
 
-  /* Si el backend ya devuelve una URL completa */
+  /*
+   * Si el backend ya devuelve una URL completa.
+   */
+
   if (
     fileName.startsWith('http://') ||
     fileName.startsWith('https://')
@@ -94,21 +128,13 @@ export const fileUrl = (name?: string | null): string => {
   }
 
   /*
-   * Normalizar rutas:
-   *
-   * uploads/foto.jpg
-   * uploads\foto.jpg
-   * /uploads/foto.jpg
-   * \uploads\foto.jpg
-   * foto.jpg
-   *
-   * Todas terminan como:
-   *
-   * http://10.233.15.141:3000/uploads/foto.jpg
+   * Normalizar rutas de Windows/Linux.
    */
 
   fileName = fileName.replace(/\\/g, '/');
+
   fileName = fileName.replace(/^\/+/, '');
+
   fileName = fileName.replace(/^uploads\/+/i, '');
 
   return `${API_URL}/uploads/${encodeURI(fileName)}`;
@@ -119,7 +145,11 @@ export const fileUrl = (name?: string | null): string => {
    ========================================================= */
 
 export const auth = {
-  login: (email: string, password: string, rol: string) =>
+  login: (
+    email: string,
+    password: string,
+    rol: string
+  ) =>
     api.post('/auth/login', {
       email,
       password,
@@ -134,7 +164,10 @@ export const auth = {
       email,
     }),
 
-  verify: (email: string, pin: string) =>
+  verify: (
+    email: string,
+    pin: string
+  ) =>
     api.post('/auth/verificar-pin', {
       email,
       pin,
@@ -162,25 +195,31 @@ export const auth = {
    ========================================================= */
 
 export const resources = {
-  /* =========================
+
+  /* =======================================================
      USUARIOS
-     ========================= */
+     ======================================================= */
 
   user: (id: any) =>
     api.get(`/auth/users/${id}`),
 
-  users: () =>
-    api.get('/auth/users'),
+  users: (params: any = {}) =>
+    api.get('/auth/users', {
+      params,
+    }),
 
-  updateUser: (id: any, data: any) =>
+  updateUser: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/auth/users/${id}`, data),
 
   deleteUser: (id: any) =>
     api.delete(`/auth/users/${id}`),
 
-  /* =========================
+  /* =======================================================
      NOTIFICACIONES
-     ========================= */
+     ======================================================= */
 
   notifications: () =>
     api.get('/api/notificaciones'),
@@ -188,9 +227,9 @@ export const resources = {
   markNotificationsRead: () =>
     api.put('/api/notificaciones/leidas'),
 
-  /* =========================
+  /* =======================================================
      CENTROS DE FORMACIÓN
-     ========================= */
+     ======================================================= */
 
   centers: () =>
     api.get('/api/centros'),
@@ -198,15 +237,18 @@ export const resources = {
   createCenter: (data: any) =>
     api.post('/api/centros', data),
 
-  updateCenter: (id: any, data: any) =>
+  updateCenter: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/api/centros/${id}`, data),
 
   deleteCenter: (id: any) =>
     api.delete(`/api/centros/${id}`),
 
-  /* =========================
+  /* =======================================================
      TIPOS DE DOCUMENTO
-     ========================= */
+     ======================================================= */
 
   docs: () =>
     api.get('/api/tipo-documento'),
@@ -214,15 +256,18 @@ export const resources = {
   createDoc: (data: any) =>
     api.post('/api/tipo-documento', data),
 
-  updateDoc: (id: any, data: any) =>
+  updateDoc: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/api/tipo-documento/${id}`, data),
 
   deleteDoc: (id: any) =>
     api.delete(`/api/tipo-documento/${id}`),
 
-  /* =========================
+  /* =======================================================
      CONFIGURACIÓN GUARDA
-     ========================= */
+     ======================================================= */
 
   config: () =>
     api.get('/api/config-gr'),
@@ -230,37 +275,50 @@ export const resources = {
   createConfig: (data: any) =>
     api.post('/api/config-gr', data),
 
-  updateConfig: (id: any, data: any) =>
+  updateConfig: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/api/config-gr/${id}`, data),
 
   deleteConfig: (id: any) =>
     api.delete(`/api/config-gr/${id}`),
 
-  /* =========================
+  /* =======================================================
      VEHÍCULOS
-     ========================= */
+     PAGINACIÓN + BÚSQUEDA
+     ======================================================= */
 
-  vehicles: () =>
-    api.get('/api/vehiculos'),
+  vehicles: (params: any = {}) =>
+    api.get('/api/vehiculos', {
+      params,
+    }),
 
-  myVehicles: () =>
-    api.get('/api/vehiculos/mis-vehiculos'),
+  myVehicles: (params: any = {}) =>
+    api.get('/api/vehiculos/mis-vehiculos', {
+      params,
+    }),
 
   createVehicle: (data: any) =>
     api.post('/api/vehiculos', data),
 
-  updateVehicle: (id: any, data: any) =>
+  updateVehicle: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/api/vehiculos/${id}`, data),
 
   deleteVehicle: (id: any) =>
     api.delete(`/api/vehiculos/${id}`),
 
-  /* =========================
+  /* =======================================================
      ENTRADAS Y SALIDAS
-     ========================= */
+     ======================================================= */
 
-  records: () =>
-    api.get('/api/entrada-salida-aprendiz'),
+  records: (params: any = {}) =>
+    api.get('/api/entrada-salida-aprendiz', {
+      params,
+    }),
 
   reportRecords: (periodo: string) =>
     api.get(
@@ -269,7 +327,10 @@ export const resources = {
       )}`
     ),
 
-  updateRecord: (id: any, data: any) =>
+  updateRecord: (
+    id: any,
+    data: any
+  ) =>
     api.patch(
       `/api/entrada-salida-aprendiz/${id}`,
       data
@@ -280,60 +341,60 @@ export const resources = {
       `/api/entrada-salida-aprendiz/${id}`
     ),
 
-  /* =========================
+  /* =======================================================
      SOPORTES
-     ========================= */
+     ======================================================= */
 
-  supports: () =>
-    api.get('/api/soportes'),
+  supports: (params: any = {}) =>
+    api.get('/api/soportes', {
+      params,
+    }),
 
-  mySupports: () =>
-    api.get('/api/soportes/mios'),
+  mySupports: (params: any = {}) =>
+    api.get('/api/soportes/mios', {
+      params,
+    }),
 
   createSupport: (data: any) =>
     api.post('/api/soportes', data),
 
-  respondSupport: (id: any, data: any) =>
+  respondSupport: (
+    id: any,
+    data: any
+  ) =>
     api.put(`/api/soportes/${id}`, data),
 
-  resolvedSupports: () =>
-    api.get('/api/soportes/reportes-recibidos'),
+  resolvedSupports: (params: any = {}) =>
+    api.get('/api/soportes/reportes-recibidos', {
+      params,
+    }),
 
-  /* =========================
-     REPORTES
-     ========================= */
+  /* =======================================================
+     REPORTES GENERALES
+     ======================================================= */
 
-  reports: () =>
-    api.get('/api/reportes'),
+  reports: (params: any = {}) =>
+    api.get('/api/reportes', {
+      params,
+    }),
 
-  myReports: () =>
-    api.get('/api/reportes/mios'),
+  myReports: (params: any = {}) =>
+    api.get('/api/reportes/mios', {
+      params,
+    }),
 
   createReport: (data: any) =>
     api.post('/api/reportes', data),
 
-  /* =========================
+  /* =======================================================
      SOLICITUDES DE CARNET
-     ========================= */
+     ======================================================= */
 
-  requestsCarnet: (
-  page: number = 1,
-  limit: number = 10,
-  search: string = ''
-) =>
-  api.get('/api/solicitudes-carnet', {
-    params: {
-      page,
-      limit,
-      search,
-    },
-  }),
+  requestsCarnet: (params: any = {}) =>
+    api.get('/api/carnet/pendientes', {
+      params,
+    }),
 
-  /*
-   * IMPORTANTE:
-   * Se recibe FormData directamente.
-   * NO se establece Content-Type manualmente.
-   */
   requestCarnet: (data: FormData) =>
     api.post('/api/solicitudes-carnet', data),
 
@@ -347,9 +408,20 @@ export const resources = {
       `/api/solicitudes-carnet/${id}/rechazar`
     ),
 
-  /* =========================
+  /* =======================================================
+     REPORTES DE PETICIONES DE CARNET
+     ======================================================= */
+
+  carnetReport: (tipo: string) =>
+    api.get('/api/carnet/reportes', {
+      params: {
+        tipo,
+      },
+    }),
+
+  /* =======================================================
      CARNET
-     ========================= */
+     ======================================================= */
 
   generateCarnet: (id: any) =>
     api.post(`/api/carnet/generar/${id}`),
@@ -362,22 +434,23 @@ export const resources = {
       codigoQr,
     }),
 
-  /* =========================
+  /* =======================================================
      SOLICITUDES DE ACTUALIZACIÓN
-     ========================= */
+     PAGINACIÓN + BÚSQUEDA
+     ======================================================= */
 
   requestsUpdate: (
-  page: number = 1,
-  limit: number = 10,
-  search: string = ''
-) =>
-  api.get('/api/solicitudes-actualizacion', {
-    params: {
-      page,
-      limit,
-      search,
-    },
-  }),
+    page: number = 1,
+    limit: number = 10,
+    search: string = ''
+  ) =>
+    api.get('/api/solicitudes-actualizacion', {
+      params: {
+        page,
+        limit,
+        search,
+      },
+    }),
 
   approveUpdate: (id: any) =>
     api.put(
@@ -399,9 +472,9 @@ export const resources = {
       `/api/solicitudes-actualizacion/${id}/rechazar`
     ),
 
-  /* =========================
+  /* =======================================================
      ACCIONES DE USUARIO
-     ========================= */
+     ======================================================= */
 
   action: (data: any) =>
     api.post('/api/usuarios/accion', data),

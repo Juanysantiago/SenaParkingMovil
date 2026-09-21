@@ -1,5 +1,8 @@
 require("dotenv").config();
 
+
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 const express = require("express");
 const path = require("path");
 const cors = require("cors");
@@ -7,6 +10,7 @@ const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
 
 const app = express();
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /* MODELOS */
 require("./models");

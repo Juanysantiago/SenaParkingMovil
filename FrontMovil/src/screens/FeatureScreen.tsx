@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 
 import {
@@ -24,7 +23,10 @@ import {
   api,
 } from '../data/api';
 
-import { colors, common } from '../theme';
+import {
+  colors,
+  common,
+} from '../theme';
 
 import Header from '../components/Header';
 import Button from '../components/Button';
@@ -35,7 +37,7 @@ import FileViewerModal from '../components/FileViewerModal';
 
 /* =========================================================
    UTILIDADES
-   ========================================================= */
+========================================================= */
 
 const statusText = (s: any) =>
   ({
@@ -51,92 +53,28 @@ const statusText = (s: any) =>
 const arr = (d: any) =>
   Array.isArray(d)
     ? d
-    : d?.data ||
-      d?.rows ||
-      d?.users ||
-      d?.solicitudes ||
-      d?.registros ||
-      d?.notificaciones ||
-      [];
+    : (
+        d?.data ||
+        d?.rows ||
+        d?.users ||
+        d?.solicitudes ||
+        d?.registros ||
+        d?.notificaciones ||
+        []
+      );
 
-/* =========================================================
-   NORMALIZAR ARCHIVOS
-   ========================================================= */
-
-const uriFile = (a: any) => {
-  if (!a?.uri) {
-    return null;
-  }
-
-  let type = a.mimeType || a.type;
-
-  const originalName =
-    a.fileName ||
-    a.name ||
-    `archivo-${Date.now()}`;
-
-  if (!type) {
-    const extension =
-      originalName
-        .split('.')
-        .pop()
-        ?.toLowerCase() || '';
-
-    const mimeMap: any = {
-      jpg: 'image/jpeg',
-      jpeg: 'image/jpeg',
-      png: 'image/png',
-      gif: 'image/gif',
-      webp: 'image/webp',
-      heic: 'image/heic',
-      heif: 'image/heif',
-
-      pdf: 'application/pdf',
-
-      doc: 'application/msword',
-      docx:
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-
-      xls: 'application/vnd.ms-excel',
-      xlsx:
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-
-      txt: 'text/plain',
-    };
-
-    type =
-      mimeMap[extension] ||
-      'application/octet-stream';
-  }
-
-  return {
-    uri: a.uri,
-    name: originalName,
-    type,
-  };
-};
-
-const isImageFile = (file: any) => {
-  if (!file) {
-    return false;
-  }
-
-  if (
-    String(file.type || '')
-      .toLowerCase()
-      .startsWith('image/')
-  ) {
-    return true;
-  }
-
-  return /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(
-    String(file.name || '')
-  );
-};
+const uriFile = (a: any) =>
+  a
+    ? {
+        uri: a.uri,
+        name: a.fileName || a.name || `archivo-${Date.now()}`,
+        type: a.mimeType || 'application/octet-stream',
+      }
+    : null;
 
 /* =========================================================
    MENÚS
-   ========================================================= */
+========================================================= */
 
 const menus: any = {
   aprendiz: [
@@ -175,7 +113,7 @@ const menus: any = {
 
 /* =========================================================
    DRAWER
-   ========================================================= */
+========================================================= */
 
 function RoleDrawer({
   visible,
@@ -189,8 +127,7 @@ function RoleDrawer({
   navigation: any;
 }) {
   const list =
-    menus[user?.rol || 'aprendiz'] ||
-    menus.aprendiz;
+    menus[user?.rol || 'aprendiz'] || menus.aprendiz;
 
   const go = (k: string, t: string) => {
     onClose();
@@ -239,9 +176,7 @@ function RoleDrawer({
             }}
           >
             <View style={styles.logo}>
-              <Text style={{ fontSize: 22 }}>
-                🅿️
-              </Text>
+              <Text style={{ fontSize: 22 }}>🅿️</Text>
             </View>
 
             <View style={{ flex: 1 }}>
@@ -264,9 +199,7 @@ function RoleDrawer({
           {list.map((m: any) => (
             <TouchableOpacity
               key={m[0]}
-              onPress={() =>
-                go(m[0], m[1])
-              }
+              onPress={() => go(m[0], m[1])}
               style={styles.menuItem}
             >
               <Text style={styles.menuIcon}>
@@ -295,7 +228,7 @@ function RoleDrawer({
 
 /* =========================================================
    FEATURE SCREEN
-   ========================================================= */
+========================================================= */
 
 export default function FeatureScreen({
   route,
@@ -305,39 +238,103 @@ export default function FeatureScreen({
 
   const [user, setUser] = useState<any>({});
   const [items, setItems] = useState<any[]>([]);
-  const [loading, setLoading] =
-    useState(true);
-  const [refreshing, setRefreshing] =
-    useState(false);
-  const [error, setError] =
-    useState('');
-  const [page, setPage] =
-    useState(1);
-  const [menu, setMenu] =
-    useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
+
+  const [page, setPage] = useState(1);
+  const [menu, setMenu] = useState(false);
+
   const [supportTab, setSupportTab] =
-    useState('pendientes');
-  const [filterName, setFilterName] =
+    useState('todos');
+
+  const [filterName, setFilterName] = useState('');
+  const [filterDoc, setFilterDoc] = useState('');
+
+  /* =======================================================
+     VEHÍCULOS
+  ======================================================= */
+
+  const [vehicleSearch, setVehicleSearch] =
     useState('');
-  const [filterDoc, setFilterDoc] =
+
+  const [vehicleTotal, setVehicleTotal] =
+    useState(0);
+
+  /* =======================================================
+     BLOQUEOS
+  ======================================================= */
+
+  const [blockSearch, setBlockSearch] =
     useState('');
+
+  const [blockTotal, setBlockTotal] =
+    useState(0);
+
+  /* =======================================================
+     SOPORTE ADMIN
+  ======================================================= */
+
+  const [supportSearch, setSupportSearch] =
+    useState('');
+
+  const [supportTotal, setSupportTotal] =
+    useState(0);
+
+  /* =======================================================
+     PETICIONES DE CARNET
+  ======================================================= */
+
+  const [carnetSearch, setCarnetSearch] =
+    useState('');
+
+  const [carnetTotal, setCarnetTotal] =
+    useState(0);
+
+  const [carnetReport, setCarnetReport] =
+    useState<any>(null);
+
+  const [
+    carnetReportLoading,
+    setCarnetReportLoading,
+  ] = useState(false);
+
+  /* =======================================================
+     PETICIONES DE ACTUALIZACIÓN
+  ======================================================= */
+
+  const [updateSearch, setUpdateSearch] =
+    useState('');
+
+  const [updateTotal, setUpdateTotal] =
+    useState(0);
 
   const pageSize = 10;
 
-  useEffect(() => {
-    AsyncStorage.getItem('user').then(
-      (x) => {
-        if (x) {
-          setUser(JSON.parse(x));
-        }
-      }
-    );
+  const isVehicleKey =
+    key === 'vehicles' ||
+    key === 'myVehicles';
 
-    setPage(1);
-    load();
-  }, [key]);
+  const isBlockKey =
+    key === 'blocks';
 
-  const load = async () => {
+  const isSupportAdminKey =
+    key === 'supportAdmin';
+
+  const isCarnetKey =
+    key === 'pending';
+
+  const isUpdateKey =
+    key === 'updateRequests';
+
+  /* =======================================================
+     CARGAR INFORMACIÓN
+  ======================================================= */
+
+  const load = async (
+    targetPage = page,
+    targetSearch = ''
+  ) => {
     setError('');
     setLoading(true);
 
@@ -354,15 +351,27 @@ export default function FeatureScreen({
           break;
 
         case 'supportAdmin':
-          r = await resources.supports();
+          r = await resources.supports({
+            page: targetPage,
+            limit: pageSize,
+            search: targetSearch.trim(),
+          });
           break;
 
         case 'myVehicles':
-          r = await resources.myVehicles();
+          r = await resources.myVehicles({
+            page: targetPage,
+            limit: pageSize,
+            search: targetSearch.trim(),
+          });
           break;
 
         case 'vehicles':
-          r = await resources.vehicles();
+          r = await resources.vehicles({
+            page: targetPage,
+            limit: pageSize,
+            search: targetSearch.trim(),
+          });
           break;
 
         case 'records':
@@ -374,11 +383,19 @@ export default function FeatureScreen({
           break;
 
         case 'pending':
-          r = await resources.requestsCarnet();
+          r = await resources.requestsCarnet({
+            page: targetPage,
+            limit: pageSize,
+            search: targetSearch.trim(),
+          });
           break;
 
         case 'updateRequests':
-          r = await resources.requestsUpdate();
+          r = await resources.requestsUpdate(
+            targetPage,
+            pageSize,
+            targetSearch.trim()
+          );
           break;
 
         case 'centers':
@@ -394,7 +411,11 @@ export default function FeatureScreen({
           break;
 
         case 'blocks':
-          r = await resources.users();
+          r = await resources.users({
+            page: targetPage,
+            limit: pageSize,
+            search: targetSearch.trim(),
+          });
           break;
 
         default:
@@ -403,6 +424,56 @@ export default function FeatureScreen({
 
       if (r) {
         setItems(arr(r.data));
+
+        if (isVehicleKey) {
+          setVehicleTotal(
+            Number(
+              r.data?.total ??
+              r.data?.pagination?.total ??
+              0
+            )
+          );
+        }
+
+        if (key === 'blocks') {
+          setBlockTotal(
+            Number(
+              r.data?.total ??
+              r.data?.pagination?.total ??
+              0
+            )
+          );
+        }
+
+        if (key === 'supportAdmin') {
+          setSupportTotal(
+            Number(
+              r.data?.total ??
+              r.data?.pagination?.total ??
+              0
+            )
+          );
+        }
+
+        if (key === 'pending') {
+          setCarnetTotal(
+            Number(
+              r.data?.total ??
+              r.data?.pagination?.total ??
+              0
+            )
+          );
+        }
+
+        if (key === 'updateRequests') {
+          setUpdateTotal(
+            Number(
+              r.data?.pagination?.total ??
+              r.data?.total ??
+              0
+            )
+          );
+        }
       }
     } catch (e) {
       setError(messageOf(e));
@@ -411,6 +482,43 @@ export default function FeatureScreen({
       setRefreshing(false);
     }
   };
+
+  /* =======================================================
+     EFECTO INICIAL
+  ======================================================= */
+
+  useEffect(() => {
+    AsyncStorage.getItem('user').then(
+      (x) =>
+        x &&
+        setUser(JSON.parse(x))
+    );
+
+    setPage(1);
+
+    setVehicleSearch('');
+    setVehicleTotal(0);
+
+    setBlockSearch('');
+    setBlockTotal(0);
+
+    setSupportSearch('');
+    setSupportTotal(0);
+
+    setCarnetSearch('');
+    setCarnetTotal(0);
+
+    setUpdateSearch('');
+    setUpdateTotal(0);
+
+    setCarnetReport(null);
+
+    load(1, '');
+  }, [key]);
+
+  /* =======================================================
+     FORMULARIOS
+  ======================================================= */
 
   if (
     [
@@ -452,10 +560,44 @@ export default function FeatureScreen({
     );
   }
 
+  /* =======================================================
+     REFRESH
+  ======================================================= */
+
   const refresh = () => {
     setRefreshing(true);
+
+    if (isVehicleKey) {
+      load(page, vehicleSearch);
+      return;
+    }
+
+    if (isBlockKey) {
+      load(page, blockSearch);
+      return;
+    }
+
+    if (isCarnetKey) {
+      load(page, carnetSearch);
+      return;
+    }
+
+    if (isSupportAdminKey) {
+      load(page, supportSearch);
+      return;
+    }
+
+    if (isUpdateKey) {
+      load(page, updateSearch);
+      return;
+    }
+
     load();
   };
+
+  /* =======================================================
+     NOTIFICACIONES
+  ======================================================= */
 
   const markRead = async () => {
     await resources
@@ -471,30 +613,51 @@ export default function FeatureScreen({
     );
   };
 
+  /* =======================================================
+     FILTROS LOCALES
+  ======================================================= */
+
   let visibleItems = [...items];
 
   if (key === 'support') {
-    visibleItems =
-      visibleItems.filter((x) =>
-        supportTab === 'pendientes'
-          ? String(
-              x.estado || ''
-            ).toLowerCase() !==
-            'resuelto'
-          : String(
-              x.estado || ''
-            ).toLowerCase() ===
-            'resuelto'
-      );
-  }
+  visibleItems = visibleItems.filter((x) => {
+    const estado = String(x.estado || '')
+      .trim()
+      .toLowerCase();
+
+    if (supportTab === 'pendientes') {
+      return ![
+        'resuelto',
+        'solucionado',
+        'solucionada',
+        'cerrado',
+        'cerrada',
+      ].includes(estado);
+    }
+
+    if (supportTab === 'resueltos') {
+      return [
+        'resuelto',
+        'solucionado',
+        'solucionada',
+        'cerrado',
+        'cerrada',
+      ].includes(estado);
+    }
+
+    return true;
+  });
+}
 
   if (key === 'users') {
     visibleItems =
       visibleItems.filter(
         (x) =>
-          `${x.nombres || ''} ${
-            x.apellidos || ''
-          }`
+          (
+            `${x.nombres || ''} ${
+              x.apellidos || ''
+            }`
+          )
             .toLowerCase()
             .includes(
               filterName.toLowerCase()
@@ -520,14 +683,254 @@ export default function FeatureScreen({
       );
   }
 
+  /* =======================================================
+     PAGINACIÓN
+  ======================================================= */
+
   const paged =
-    key === 'users' ||
-    key === 'records'
+    isVehicleKey ||
+    isBlockKey ||
+    isSupportAdminKey ||
+    isCarnetKey ||
+    isUpdateKey
+      ? visibleItems
+      : key === 'users' ||
+        key === 'records'
       ? visibleItems.slice(
           (page - 1) * pageSize,
           page * pageSize
         )
       : visibleItems;
+
+  /* =======================================================
+     BÚSQUEDA VEHÍCULOS
+  ======================================================= */
+
+  const searchVehicles = () => {
+    setPage(1);
+    load(
+      1,
+      vehicleSearch.trim()
+    );
+  };
+
+  const clearVehicleSearch = () => {
+    setVehicleSearch('');
+    setPage(1);
+    load(1, '');
+  };
+
+  const changeVehiclePage = (
+    nextPage: number
+  ) => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(
+        vehicleTotal / pageSize
+      )
+    );
+
+    const newPage = Math.min(
+      totalPages,
+      Math.max(1, nextPage)
+    );
+
+    if (newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    load(
+      newPage,
+      vehicleSearch
+    );
+  };
+
+  /* =======================================================
+     BÚSQUEDA BLOQUEOS
+  ======================================================= */
+
+  const searchBlocks = () => {
+    setPage(1);
+    load(
+      1,
+      blockSearch.trim()
+    );
+  };
+
+  const clearBlockSearch = () => {
+    setBlockSearch('');
+    setPage(1);
+    load(1, '');
+  };
+
+  const changeBlockPage = (
+    nextPage: number
+  ) => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(
+        blockTotal / pageSize
+      )
+    );
+
+    const newPage = Math.min(
+      totalPages,
+      Math.max(1, nextPage)
+    );
+
+    if (newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    load(
+      newPage,
+      blockSearch
+    );
+  };
+
+  /* =======================================================
+     BÚSQUEDA SOPORTE ADMIN
+  ======================================================= */
+
+  const searchSupport = () => {
+    setPage(1);
+    load(
+      1,
+      supportSearch.trim()
+    );
+  };
+
+  const clearSupportSearch = () => {
+    setSupportSearch('');
+    setPage(1);
+    load(1, '');
+  };
+
+  const changeSupportPage = (
+    nextPage: number
+  ) => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(
+        supportTotal / pageSize
+      )
+    );
+
+    const newPage = Math.min(
+      totalPages,
+      Math.max(1, nextPage)
+    );
+
+    if (newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    load(
+      newPage,
+      supportSearch
+    );
+  };
+
+  /* =======================================================
+     BÚSQUEDA PETICIONES DE CARNET
+  ======================================================= */
+
+  const searchCarnets = () => {
+    setPage(1);
+    load(
+      1,
+      carnetSearch.trim()
+    );
+  };
+
+  const clearCarnetSearch = () => {
+    setCarnetSearch('');
+    setPage(1);
+    load(1, '');
+  };
+
+  const changeCarnetPage = (
+    nextPage: number
+  ) => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(
+        carnetTotal / pageSize
+      )
+    );
+
+    const newPage = Math.min(
+      totalPages,
+      Math.max(1, nextPage)
+    );
+
+    if (newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    load(
+      newPage,
+      carnetSearch
+    );
+  };
+
+  /* =======================================================
+     BÚSQUEDA PETICIONES DE ACTUALIZACIÓN
+  ======================================================= */
+
+  const searchUpdates = () => {
+    setPage(1);
+
+    load(
+      1,
+      updateSearch.trim()
+    );
+  };
+
+  const clearUpdateSearch = () => {
+    setUpdateSearch('');
+    setPage(1);
+    load(1, '');
+  };
+
+  const changeUpdatePage = (
+    nextPage: number
+  ) => {
+    const totalPages = Math.max(
+      1,
+      Math.ceil(
+        updateTotal / pageSize
+      )
+    );
+
+    const newPage = Math.min(
+      totalPages,
+      Math.max(1, nextPage)
+    );
+
+    if (newPage === page) {
+      return;
+    }
+
+    setPage(newPage);
+
+    load(
+      newPage,
+      updateSearch
+    );
+  };
+
+  /* =======================================================
+     PANTALLA
+  ======================================================= */
 
   return (
     <View style={common.screen}>
@@ -542,8 +945,7 @@ export default function FeatureScreen({
                   'Feature',
                   {
                     key: 'notifications',
-                    title:
-                      'Notificaciones',
+                    title: 'Notificaciones',
                   }
                 )
             : undefined
@@ -561,43 +963,43 @@ export default function FeatureScreen({
           />
         }
       >
-        {key === 'support' && (
-          <View
-            style={[
-              common.card,
-              {
-                flexDirection: 'row',
-                gap: 8,
-              },
-            ]}
-          >
-            <Tab
-              active={
-                supportTab ===
-                'pendientes'
-              }
-              text="Pendientes"
-              onPress={() =>
-                setSupportTab(
-                  'pendientes'
-                )
-              }
-            />
+        {/* =================================================
+            SOPORTE
+        ================================================= */}
 
-            <Tab
-              active={
-                supportTab ===
-                'resueltos'
-              }
-              text="Respondidos"
-              onPress={() =>
-                setSupportTab(
-                  'resueltos'
-                )
-              }
-            />
-          </View>
-        )}
+        {key === 'support' && (
+  <View
+    style={[
+      common.card,
+      {
+        flexDirection: 'row',
+        gap: 8,
+      },
+    ]}
+  >
+    <Tab
+      active={supportTab === 'todos'}
+      text="Todas"
+      onPress={() => setSupportTab('todos')}
+    />
+
+    <Tab
+      active={supportTab === 'pendientes'}
+      text="Pendientes"
+      onPress={() => setSupportTab('pendientes')}
+    />
+
+    <Tab
+      active={supportTab === 'resueltos'}
+      text="Resueltos"
+      onPress={() => setSupportTab('resueltos')}
+    />
+  </View>
+)}
+
+        {/* =================================================
+            FILTRO USUARIOS
+        ================================================= */}
 
         {key === 'users' && (
           <View style={common.card}>
@@ -630,6 +1032,435 @@ export default function FeatureScreen({
           </View>
         )}
 
+        {/* =================================================
+            BÚSQUEDA VEHÍCULOS
+        ================================================= */}
+
+        {isVehicleKey && (
+          <View style={common.card}>
+            <Text
+              style={
+                common.sectionTitle
+              }
+            >
+              Buscar vehículo
+            </Text>
+
+            <Text
+              style={[
+                common.subtitle,
+                {
+                  marginTop: 4,
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              Busca por nombre,
+              documento, placa o
+              serial.
+            </Text>
+
+            <Field
+              label="NOMBRE, DOCUMENTO, PLACA O SERIAL"
+              value={vehicleSearch}
+              onChangeText={
+                setVehicleSearch
+              }
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="BUSCAR"
+                  onPress={
+                    searchVehicles
+                  }
+                />
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="LIMPIAR"
+                  outline
+                  onPress={
+                    clearVehicleSearch
+                  }
+                />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontWeight: '700',
+                color: colors.muted,
+              }}
+            >
+              {vehicleTotal > 0
+                ? `Vehículos encontrados: ${vehicleTotal}`
+                : 'Sin resultados'}
+            </Text>
+          </View>
+        )}
+
+        {/* =================================================
+            BÚSQUEDA BLOQUEOS
+        ================================================= */}
+
+        {key === 'blocks' && (
+          <View style={common.card}>
+            <Text
+              style={
+                common.sectionTitle
+              }
+            >
+              Buscar usuario
+            </Text>
+
+            <Text
+              style={[
+                common.subtitle,
+                {
+                  marginTop: 4,
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              Busca por nombre,
+              documento o correo.
+            </Text>
+
+            <Field
+              label="NOMBRE, DOCUMENTO O CORREO"
+              value={blockSearch}
+              onChangeText={
+                setBlockSearch
+              }
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="BUSCAR"
+                  onPress={
+                    searchBlocks
+                  }
+                />
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="LIMPIAR"
+                  outline
+                  onPress={
+                    clearBlockSearch
+                  }
+                />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontWeight: '700',
+                color: colors.muted,
+              }}
+            >
+              {blockTotal > 0
+                ? `Usuarios encontrados: ${blockTotal}`
+                : 'Sin resultados'}
+            </Text>
+          </View>
+        )}
+
+        {/* =================================================
+            BÚSQUEDA SOPORTE ADMIN
+        ================================================= */}
+
+        {key === 'supportAdmin' && (
+          <View style={common.card}>
+            <Text
+              style={
+                common.sectionTitle
+              }
+            >
+              Buscar soporte
+            </Text>
+
+            <Text
+              style={[
+                common.subtitle,
+                {
+                  marginTop: 4,
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              Busca por nombre,
+              documento, asunto o
+              descripción.
+            </Text>
+
+            <Field
+              label="NOMBRE, DOCUMENTO, ASUNTO O DESCRIPCIÓN"
+              value={supportSearch}
+              onChangeText={
+                setSupportSearch
+              }
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="BUSCAR"
+                  onPress={
+                    searchSupport
+                  }
+                />
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="LIMPIAR"
+                  outline
+                  onPress={
+                    clearSupportSearch
+                  }
+                />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontWeight: '700',
+                color: colors.muted,
+              }}
+            >
+              {supportTotal > 0
+                ? `Soportes encontrados: ${supportTotal}`
+                : 'Sin resultados'}
+            </Text>
+          </View>
+        )}
+
+        {/* =================================================
+            BÚSQUEDA PETICIONES CARNET
+        ================================================= */}
+
+        {key === 'pending' && (
+          <View style={common.card}>
+            <Text
+              style={
+                common.sectionTitle
+              }
+            >
+              Buscar petición de
+              carnet
+            </Text>
+
+            <Text
+              style={[
+                common.subtitle,
+                {
+                  marginTop: 4,
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              Busca por nombre,
+              documento, serial o
+              placa.
+            </Text>
+
+            <Field
+              label="NOMBRE, DOCUMENTO, SERIAL O PLACA"
+              value={carnetSearch}
+              onChangeText={
+                setCarnetSearch
+              }
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="BUSCAR"
+                  onPress={
+                    searchCarnets
+                  }
+                />
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="LIMPIAR"
+                  outline
+                  onPress={
+                    clearCarnetSearch
+                  }
+                />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontWeight: '700',
+                color: colors.muted,
+              }}
+            >
+              {carnetTotal > 0
+                ? `Peticiones encontradas: ${carnetTotal}`
+                : 'Sin resultados'}
+            </Text>
+          </View>
+        )}
+
+        {/* =================================================
+            BÚSQUEDA PETICIONES ACTUALIZACIÓN
+        ================================================= */}
+
+        {key === 'updateRequests' && (
+          <View style={common.card}>
+            <Text
+              style={
+                common.sectionTitle
+              }
+            >
+              Buscar solicitud de
+              actualización
+            </Text>
+
+            <Text
+              style={[
+                common.subtitle,
+                {
+                  marginTop: 4,
+                  marginBottom: 8,
+                },
+              ]}
+            >
+              Busca por nombre,
+              documento, correo o
+              ficha.
+            </Text>
+
+            <Field
+              label="NOMBRE, DOCUMENTO, CORREO O FICHA"
+              value={updateSearch}
+              onChangeText={
+                setUpdateSearch
+              }
+            />
+
+            <View
+              style={{
+                flexDirection: 'row',
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="BUSCAR"
+                  onPress={
+                    searchUpdates
+                  }
+                />
+              </View>
+
+              <View
+                style={{ flex: 1 }}
+              >
+                <Button
+                  title="LIMPIAR"
+                  outline
+                  onPress={
+                    clearUpdateSearch
+                  }
+                />
+              </View>
+            </View>
+
+            <Text
+              style={{
+                marginTop: 10,
+                fontWeight: '700',
+                color: colors.muted,
+              }}
+            >
+              {updateTotal > 0
+                ? `Solicitudes encontradas: ${updateTotal}`
+                : 'Sin resultados'}
+            </Text>
+          </View>
+        )}
+
+        {/* =================================================
+            REPORTE PETICIONES CARNET
+        ================================================= */}
+
+        {key === 'pending' && (
+          <CarnetReportPanel
+            report={carnetReport}
+            setReport={
+              setCarnetReport
+            }
+            loading={
+              carnetReportLoading
+            }
+            setLoading={
+              setCarnetReportLoading
+            }
+          />
+        )}
+
+        {/* =================================================
+            NUEVO CENTRO
+        ================================================= */}
+
         {key === 'centers' && (
           <Button
             title="＋ NUEVO CENTRO"
@@ -645,6 +1476,10 @@ export default function FeatureScreen({
             }
           />
         )}
+
+        {/* =================================================
+            NUEVO DOCUMENTO
+        ================================================= */}
 
         {key === 'docs' && (
           <Button
@@ -662,15 +1497,27 @@ export default function FeatureScreen({
           />
         )}
 
+        {/* =================================================
+            REPORTES ENTRADAS / SALIDAS
+        ================================================= */}
+
         {key === 'records' && (
           <ReportPanel />
         )}
+
+        {/* =================================================
+            ERROR
+        ================================================= */}
 
         {error ? (
           <Text style={common.error}>
             {error}
           </Text>
         ) : null}
+
+        {/* =================================================
+            NOTIFICACIONES
+        ================================================= */}
 
         {key === 'notifications' && (
           <Button
@@ -679,6 +1526,10 @@ export default function FeatureScreen({
             onPress={markRead}
           />
         )}
+
+        {/* =================================================
+            CARGANDO / LISTA
+        ================================================= */}
 
         {loading ? (
           <Text
@@ -698,35 +1549,393 @@ export default function FeatureScreen({
           </View>
         ) : (
           paged.map(
-            (x: any, i: number) => (
+            (
+              x: any,
+              i: number
+            ) => (
               <RenderCard
-                key={x.id ?? i}
+                key={
+                  x.id ?? i
+                }
                 x={x}
                 i={i}
                 kind={key}
-                load={load}
+                load={() => {
+                  if (isVehicleKey) {
+                    load(
+                      page,
+                      vehicleSearch
+                    );
+                    return;
+                  }
+
+                  if (key === 'blocks') {
+                    load(
+                      page,
+                      blockSearch
+                    );
+                    return;
+                  }
+
+                  if (key === 'pending') {
+                    load(
+                      page,
+                      carnetSearch
+                    );
+                    return;
+                  }
+
+                  if (
+                    key ===
+                    'supportAdmin'
+                  ) {
+                    load(
+                      page,
+                      supportSearch
+                    );
+                    return;
+                  }
+
+                  if (
+                    key ===
+                    'updateRequests'
+                  ) {
+                    load(
+                      page,
+                      updateSearch
+                    );
+                    return;
+                  }
+
+                  load();
+                }}
               />
             )
           )
         )}
 
+        {/* =================================================
+            PAGINACIÓN VEHÍCULOS
+        ================================================= */}
+
+        {isVehicleKey &&
+          vehicleTotal >
+            pageSize && (
+            <View
+              style={[
+                common.card,
+                {
+                  flexDirection:
+                    'row',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                },
+              ]}
+            >
+              <Button
+                title="‹"
+                outline
+                onPress={() =>
+                  changeVehiclePage(
+                    page - 1
+                  )
+                }
+              />
+
+              <Text
+                style={{
+                  fontWeight:
+                    '900',
+                }}
+              >
+                Página {page} de{' '}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    vehicleTotal /
+                      pageSize
+                  )
+                )}
+              </Text>
+
+              <Button
+                title="›"
+                outline
+                onPress={() =>
+                  changeVehiclePage(
+                    page + 1
+                  )
+                }
+              />
+            </View>
+          )}
+
+        {/* =================================================
+            PAGINACIÓN BLOQUEOS
+        ================================================= */}
+
+        {key === 'blocks' &&
+          blockTotal >
+            pageSize && (
+            <View
+              style={[
+                common.card,
+                {
+                  flexDirection:
+                    'row',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                },
+              ]}
+            >
+              <Button
+                title="‹"
+                outline
+                onPress={() =>
+                  changeBlockPage(
+                    page - 1
+                  )
+                }
+              />
+
+              <Text
+                style={{
+                  fontWeight:
+                    '900',
+                }}
+              >
+                Página {page} de{' '}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    blockTotal /
+                      pageSize
+                  )
+                )}
+              </Text>
+
+              <Button
+                title="›"
+                outline
+                onPress={() =>
+                  changeBlockPage(
+                    page + 1
+                  )
+                }
+              />
+            </View>
+          )}
+
+        {/* =================================================
+            PAGINACIÓN SOPORTE
+        ================================================= */}
+
+        {key === 'supportAdmin' &&
+          supportTotal >
+            pageSize && (
+            <View
+              style={[
+                common.card,
+                {
+                  flexDirection:
+                    'row',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                },
+              ]}
+            >
+              <Button
+                title="‹"
+                outline
+                onPress={() =>
+                  changeSupportPage(
+                    page - 1
+                  )
+                }
+              />
+
+              <Text
+                style={{
+                  fontWeight:
+                    '900',
+                }}
+              >
+                Página {page} de{' '}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    supportTotal /
+                      pageSize
+                  )
+                )}
+              </Text>
+
+              <Button
+                title="›"
+                outline
+                onPress={() =>
+                  changeSupportPage(
+                    page + 1
+                  )
+                }
+              />
+            </View>
+          )}
+
+        {/* =================================================
+            PAGINACIÓN PETICIONES CARNET
+        ================================================= */}
+
+        {key === 'pending' &&
+          carnetTotal >
+            pageSize && (
+            <View
+              style={[
+                common.card,
+                {
+                  flexDirection:
+                    'row',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                },
+              ]}
+            >
+              <Button
+                title="‹"
+                outline
+                onPress={() =>
+                  changeCarnetPage(
+                    page - 1
+                  )
+                }
+              />
+
+              <Text
+                style={{
+                  fontWeight:
+                    '900',
+                }}
+              >
+                Página {page} de{' '}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    carnetTotal /
+                      pageSize
+                  )
+                )}
+              </Text>
+
+              <Button
+                title="›"
+                outline
+                onPress={() =>
+                  changeCarnetPage(
+                    page + 1
+                  )
+                }
+              />
+            </View>
+          )}
+
+        {/* =================================================
+            PAGINACIÓN PETICIONES ACTUALIZACIÓN
+        ================================================= */}
+
+        {key === 'updateRequests' &&
+          updateTotal >
+            pageSize && (
+            <View
+              style={[
+                common.card,
+                {
+                  flexDirection:
+                    'row',
+                  alignItems:
+                    'center',
+                  justifyContent:
+                    'space-between',
+                },
+              ]}
+            >
+              <Button
+                title="‹"
+                outline
+                onPress={() =>
+                  changeUpdatePage(
+                    page - 1
+                  )
+                }
+              />
+
+              <Text
+                style={{
+                  fontWeight:
+                    '900',
+                }}
+              >
+                Página {page} de{' '}
+                {Math.max(
+                  1,
+                  Math.ceil(
+                    updateTotal /
+                      pageSize
+                  )
+                )}
+              </Text>
+
+              <Button
+                title="›"
+                outline
+                onPress={() =>
+                  changeUpdatePage(
+                    page + 1
+                  )
+                }
+              />
+            </View>
+          )}
+
+        {/* =================================================
+            PAGINACIÓN LOCAL USUARIOS / RECORDS
+        ================================================= */}
+
         {(key === 'users' ||
           key === 'records') &&
-          visibleItems.length > 10 && (
+          visibleItems.length >
+            pageSize && (
             <Pagination
               page={page}
-              total={visibleItems.length}
-              pageSize={pageSize}
-              setPage={setPage}
+              total={
+                visibleItems.length
+              }
+              pageSize={
+                pageSize
+              }
+              setPage={
+                setPage
+              }
             />
           )}
       </ScrollView>
 
       <RoleDrawer
         visible={menu}
-        onClose={() => setMenu(false)}
+        onClose={() =>
+          setMenu(false)
+        }
         user={user}
-        navigation={navigation}
+        navigation={
+          navigation
+        }
       />
     </View>
   );
@@ -734,7 +1943,7 @@ export default function FeatureScreen({
 
 /* =========================================================
    TAB
-   ========================================================= */
+========================================================= */
 
 function Tab({
   active,
@@ -749,12 +1958,14 @@ function Tab({
         padding: 12,
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: active
-          ? colors.primary
-          : colors.border,
-        backgroundColor: active
-          ? colors.light
-          : '#fff',
+        borderColor:
+          active
+            ? colors.primary
+            : colors.border,
+        backgroundColor:
+          active
+            ? colors.light
+            : '#fff',
       }}
     >
       <Text
@@ -773,8 +1984,8 @@ function Tab({
 }
 
 /* =========================================================
-   REPORTES
-   ========================================================= */
+   REPORTE ENTRADAS / SALIDAS
+========================================================= */
 
 function ReportPanel() {
   const [report, setReport] =
@@ -783,12 +1994,16 @@ function ReportPanel() {
   const [busy, setBusy] =
     useState(false);
 
-  const run = async (p: string) => {
+  const run = async (
+    p: string
+  ) => {
     setBusy(true);
 
     try {
       const r =
-        await resources.reportRecords(p);
+        await resources.reportRecords(
+          p
+        );
 
       setReport(r.data);
     } catch (e) {
@@ -804,15 +2019,19 @@ function ReportPanel() {
   return (
     <View style={common.card}>
       <Text
-        style={common.sectionTitle}
+        style={
+          common.sectionTitle
+        }
       >
-        Generar reporte de entradas y salidas
+        Generar reporte de
+        entradas y salidas
       </Text>
 
       <Text
         style={common.subtitle}
       >
-        Consulta el movimiento del periodo seleccionado.
+        Consulta el movimiento
+        del periodo seleccionado.
       </Text>
 
       <View
@@ -848,21 +2067,27 @@ function ReportPanel() {
           style={styles.report}
         >
           <Text
-            style={styles.reportTitle}
+            style={
+              styles.reportTitle
+            }
           >
-            Reporte {report.periodo}
+            Reporte{' '}
+            {report.periodo}
           </Text>
 
           <Text>
-            Total registros: {report.total}
+            Total registros:{' '}
+            {report.total}
           </Text>
 
           <Text>
-            Entradas: {report.entradas}
+            Entradas:{' '}
+            {report.entradas}
           </Text>
 
           <Text>
-            Salidas: {report.salidas}
+            Salidas:{' '}
+            {report.salidas}
           </Text>
 
           <Text
@@ -885,34 +2110,234 @@ function ReportPanel() {
 }
 
 /* =========================================================
+   REPORTE PETICIONES DE CARNET
+========================================================= */
+
+function CarnetReportPanel({
+  report,
+  setReport,
+  loading,
+  setLoading,
+}: any) {
+  const run = async (
+    tipo: string
+  ) => {
+    setLoading(true);
+
+    try {
+      const r =
+        await resources.carnetReport(
+          tipo
+        );
+
+      setReport(r.data);
+    } catch (e) {
+      Alert.alert(
+        'Error',
+        messageOf(e)
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={common.card}>
+      <Text
+        style={
+          common.sectionTitle
+        }
+      >
+        Reportes de peticiones
+        de carnet
+      </Text>
+
+      <Text
+        style={[
+          common.subtitle,
+          {
+            marginTop: 4,
+            marginBottom: 10,
+          },
+        ]}
+      >
+        Consulta las solicitudes
+        realizadas durante el día,
+        semana o mes actual.
+      </Text>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: 7,
+        }}
+      >
+        <View style={{ flex: 1 }}>
+          <Button
+            title={
+              loading
+                ? '...'
+                : 'DÍA'
+            }
+            outline
+            onPress={() =>
+              run('diario')
+            }
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Button
+            title={
+              loading
+                ? '...'
+                : 'SEMANA'
+            }
+            outline
+            onPress={() =>
+              run('semanal')
+            }
+          />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Button
+            title={
+              loading
+                ? '...'
+                : 'MES'
+            }
+            outline
+            onPress={() =>
+              run('mensual')
+            }
+          />
+        </View>
+      </View>
+
+      {report && (
+        <View
+          style={styles.report}
+        >
+          <Text
+            style={
+              styles.reportTitle
+            }
+          >
+            Reporte{' '}
+            {report.tipo || ''}
+          </Text>
+
+          <Text>
+            Total solicitudes:{' '}
+            {report.resumen
+              ?.total ?? 0}
+          </Text>
+
+          <Text>
+            Aprobadas:{' '}
+            {report.resumen
+              ?.aprobadas ?? 0}
+          </Text>
+
+          <Text>
+            Carnets generados:{' '}
+            {report.resumen
+              ?.carnetsGenerados ??
+              0}
+          </Text>
+
+          <Text>
+            Rechazadas:{' '}
+            {report.resumen
+              ?.rechazadas ?? 0}
+          </Text>
+
+          <Text>
+            Pendientes:{' '}
+            {report.resumen
+              ?.pendientes ?? 0}
+          </Text>
+
+          {report.fechaInicio && (
+            <Text
+              style={{
+                marginTop: 8,
+                color: colors.muted,
+              }}
+            >
+              Desde:{' '}
+              {new Date(
+                report.fechaInicio
+              ).toLocaleString(
+                'es-CO'
+              )}
+            </Text>
+          )}
+
+          {report.fechaFin && (
+            <Text
+              style={{
+                color: colors.muted,
+              }}
+            >
+              Hasta:{' '}
+              {new Date(
+                report.fechaFin
+              ).toLocaleString(
+                'es-CO'
+              )}
+            </Text>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/* =========================================================
    EMPTY
-   ========================================================= */
+========================================================= */
 
 function emptyFor(k: string) {
   return (
     {
       notifications:
         'No tienes notificaciones.',
+
       support:
         'No tienes solicitudes de soporte.',
+
       supportAdmin:
-        'No hay soportes pendientes.',
+        'No hay soportes que coincidan con la búsqueda.',
+
       myVehicles:
         'No tienes vehículos registrados.',
+
       vehicles:
         'No hay vehículos registrados.',
+
       records:
         'No hay registros de entrada y salida.',
+
       users:
         'No hay usuarios que coincidan con el filtro.',
+
+      blocks:
+        'No hay usuarios que coincidan con la búsqueda.',
+
       pending:
         'No hay peticiones de carnet.',
+
       updateRequests:
         'No hay peticiones de actualización.',
+
       centers:
         'No hay centros de formación.',
+
       docs:
         'No hay tipos de documento.',
+
       reports:
         'No hay reportes solucionados.',
     } as any
@@ -921,7 +2346,7 @@ function emptyFor(k: string) {
 
 /* =========================================================
    PAGINACIÓN
-   ========================================================= */
+========================================================= */
 
 function Pagination({
   page,
@@ -929,8 +2354,12 @@ function Pagination({
   pageSize,
   setPage,
 }: any) {
-  const pages =
-    Math.ceil(total / pageSize);
+  const pages = Math.max(
+    1,
+    Math.ceil(
+      total / pageSize
+    )
+  );
 
   return (
     <View
@@ -983,7 +2412,7 @@ function Pagination({
 
 /* =========================================================
    FOTO
-   ========================================================= */
+========================================================= */
 
 function Photo({
   name,
@@ -1032,8 +2461,8 @@ function Photo({
 }
 
 /* =========================================================
-   FILE VIEW
-   ========================================================= */
+   ARCHIVOS
+========================================================= */
 
 function FileButtonView({
   name,
@@ -1052,22 +2481,25 @@ function FileButtonView({
   }
 
   const image =
-    /\.(jpg|jpeg|png|gif|webp|heic|heif)$/i.test(
+    /\.(jpg|jpeg|png|gif|webp)$/i.test(
       String(name)
     );
 
   return (
     <TouchableOpacity
       onPress={() =>
-        onOpen(name, label)
+        onOpen(
+          name,
+          label
+        )
       }
       style={styles.fileCard}
     >
-      <View
-        style={styles.fileIcon}
-      >
+      <View style={styles.fileIcon}>
         <Text
-          style={{ fontSize: 20 }}
+          style={{
+            fontSize: 20,
+          }}
         >
           {image
             ? '🖼️'
@@ -1109,7 +2541,7 @@ function FileButtonView({
 
 /* =========================================================
    DOCUMENTOS ARRAY
-   ========================================================= */
+========================================================= */
 
 function docsArray(value: any) {
   if (!value) {
@@ -1142,8 +2574,8 @@ function docsArray(value: any) {
 }
 
 /* =========================================================
-   RENDER CARD
-   ========================================================= */
+   TARJETAS
+========================================================= */
 
 function RenderCard({
   x,
@@ -1157,15 +2589,16 @@ function RenderCard({
   const open = (
     name: string,
     label: string
-  ) => {
+  ) =>
     setViewer({
       name,
       title: label,
     });
-  };
 
   const user =
-    x.user || x.User || {};
+    x.user ||
+    x.User ||
+    {};
 
   return (
     <View style={common.card}>
@@ -1174,24 +2607,29 @@ function RenderCard({
       >
         {user.nombres
           ? `${user.nombres} ${
-              user.apellidos || ''
+              user.apellidos ||
+              ''
             }`
           : x.nombres
           ? `${x.nombres} ${
-              x.apellidos || ''
+              x.apellidos ||
+              ''
             }`
           : x.nombre ||
             x.titulo ||
             x.asunto ||
             `Registro #${
-              x.id ?? i + 1
+              x.id ??
+              i + 1
             }`}
       </Text>
 
       {kind === 'notifications' ? (
         <>
           <Text
-            style={{ marginTop: 7 }}
+            style={{
+              marginTop: 7,
+            }}
           >
             {x.mensaje}
           </Text>
@@ -1208,60 +2646,138 @@ function RenderCard({
               : ''}
           </Text>
         </>
-      ) : kind === 'support' ||
-        kind === 'supportAdmin' ? (
-        <>
-          <Text
-            style={styles.boldLine}
-          >
-            Asunto:{' '}
-            {x.asunto || '—'}
+      ) : kind === 'support' || kind === 'supportAdmin' ? (
+  <>
+    <Text style={styles.boldLine}>
+      Asunto: {x.asunto || '—'}
+    </Text>
+
+    <Text style={{ marginTop: 8 }}>
+      {x.descripcion || '—'}
+    </Text>
+
+    {/* ESTADO */}
+    <View
+      style={{
+        marginTop: 12,
+        padding: 10,
+        borderRadius: 10,
+        backgroundColor:
+          [
+            'resuelto',
+            'solucionado',
+            'solucionada',
+            'cerrado',
+            'cerrada',
+          ].includes(
+            String(x.estado || '')
+              .trim()
+              .toLowerCase()
+          )
+            ? '#E8F5E9'
+            : '#FFF8E1',
+      }}
+    >
+      <Text
+        style={{
+          fontWeight: '900',
+          color:
+            [
+              'resuelto',
+              'solucionado',
+              'solucionada',
+              'cerrado',
+              'cerrada',
+            ].includes(
+              String(x.estado || '')
+                .trim()
+                .toLowerCase()
+            )
+              ? '#2E7D32'
+              : '#B26A00',
+        }}
+      >
+        {[
+          'resuelto',
+          'solucionado',
+          'solucionada',
+          'cerrado',
+          'cerrada',
+        ].includes(
+          String(x.estado || '')
+            .trim()
+            .toLowerCase()
+        )
+          ? '✅ RESUELTO'
+          : '⏳ PENDIENTE'}
+      </Text>
+    </View>
+
+    {/* FECHA */}
+    {(x.createdAt || x.fechaCreacion) && (
+      <Text style={styles.date}>
+        Solicitud:{' '}
+        {new Date(
+          x.createdAt || x.fechaCreacion
+        ).toLocaleString('es-CO')}
+      </Text>
+    )}
+
+    {/* RESPUESTA DEL ADMINISTRADOR */}
+    {x.respuesta ? (
+      <View style={styles.answer}>
+        <Text style={styles.answerTitle}>
+          💬 Respuesta del administrador
+        </Text>
+
+        <Text>
+          {x.respuesta}
+        </Text>
+
+        {(x.updatedAt || x.fechaRespuesta) && (
+          <Text style={styles.date}>
+            Respondido:{' '}
+            {new Date(
+              x.fechaRespuesta || x.updatedAt
+            ).toLocaleString('es-CO')}
           </Text>
+        )}
+      </View>
+    ) : (
+      <View
+        style={{
+          marginTop: 10,
+          padding: 10,
+          borderRadius: 10,
+          backgroundColor: '#F5F5F5',
+        }}
+      >
+        <Text style={{ color: colors.muted }}>
+          El administrador todavía no ha respondido esta solicitud.
+        </Text>
+      </View>
+    )}
 
-          <Text
-            style={{ marginTop: 5 }}
-          >
-            {x.descripcion || '—'}
-          </Text>
-
-          <Text
-            style={styles.boldLine}
-          >
-            Estado:{' '}
-            {statusText(
-              x.estado
-            )}
-          </Text>
-
-          {x.respuesta && (
-            <View
-              style={styles.answer}
-            >
-              <Text
-                style={
-                  styles.answerTitle
-                }
-              >
-                💬 Respuesta del soporte
-              </Text>
-
-              <Text>
-                {x.respuesta}
-              </Text>
-            </View>
-          )}
-
-          {kind ===
-            'supportAdmin' &&
-            x.estado !==
-              'Resuelto' && (
-              <SupportReply
-                id={x.id}
-                load={load}
-              />
-            )}
-        </>
-      ) : kind === 'pending' ? (
+    {/* SOLO ADMINISTRADOR PUEDE RESPONDER */}
+    {kind === 'supportAdmin' &&
+      ![
+        'resuelto',
+        'solucionado',
+        'solucionada',
+        'cerrado',
+        'cerrada',
+      ].includes(
+        String(x.estado || '')
+          .trim()
+          .toLowerCase()
+      ) && (
+        <SupportReply
+          id={x.id}
+          load={load}
+        />
+      )}
+  </>
+) : kind === 'pending' ? (
         <>
           <Text>
             Documento:{' '}
@@ -1295,11 +2811,14 @@ function RenderCard({
             Centro:{' '}
             {user
               .centroFormacion
-              ?.nombre || '—'}
+              ?.nombre ||
+              '—'}
           </Text>
 
           <Text
-            style={styles.subhead}
+            style={
+              styles.subhead
+            }
           >
             Vehículo
           </Text>
@@ -1324,8 +2843,8 @@ function RenderCard({
             {x.tipoVehiculo ===
             'moto'
               ? 'Placa'
-              : 'Serial'}{' '}
-            : {x.serialPlaca ||
+              : 'Serial'}:{' '}
+            {x.serialPlaca ||
               '—'}
           </Text>
 
@@ -1346,12 +2865,16 @@ function RenderCard({
           )}
 
           <Photo
-            name={x.fotoAprendiz}
+            name={
+              x.fotoAprendiz
+            }
             label="Foto del aprendiz"
           />
 
           <Photo
-            name={x.fotoVehiculo}
+            name={
+              x.fotoVehiculo
+            }
             label="Foto del vehículo"
           />
 
@@ -1450,7 +2973,9 @@ function RenderCard({
 
           <CompareData
             title="DATOS A ACTUALIZAR"
-            data={x.datosNuevos}
+            data={
+              x.datosNuevos
+            }
           />
 
           {x.fotoNueva && (
@@ -1511,15 +3036,18 @@ function RenderCard({
           'myVehicles' ? (
         <>
           <Text>
-            Tipo: {x.tipo || '—'}
+            Tipo:{' '}
+            {x.tipo || '—'}
           </Text>
 
           <Text>
-            Marca: {x.marca || '—'}
+            Marca:{' '}
+            {x.marca || '—'}
           </Text>
 
           <Text>
-            Color: {x.color || '—'}
+            Color:{' '}
+            {x.color || '—'}
           </Text>
 
           {x.tipo ===
@@ -1549,7 +3077,9 @@ function RenderCard({
           )}
 
           <Text
-            style={styles.subhead}
+            style={
+              styles.subhead
+            }
           >
             Propietario
           </Text>
@@ -1578,7 +3108,8 @@ function RenderCard({
             Centro:{' '}
             {user
               .centroFormacion
-              ?.nombre || '—'}
+              ?.nombre ||
+              '—'}
           </Text>
 
           <Photo
@@ -1603,12 +3134,15 @@ function RenderCard({
             />
           )}
         </>
-      ) : kind === 'users' ||
-        kind === 'blocks' ? (
+      ) : kind ===
+          'users' ||
+        kind ===
+          'blocks' ? (
         <>
           <Text>
             Documento:{' '}
-            {x.documento || '—'}
+            {x.documento ||
+              '—'}
           </Text>
 
           <Text>
@@ -1617,12 +3151,14 @@ function RenderCard({
           </Text>
 
           <Text>
-            Rol: {x.rol || '—'}
+            Rol:{' '}
+            {x.rol || '—'}
           </Text>
 
           <Text>
             Estado:{' '}
-            {x.estado || 'activo'}
+            {x.estado ||
+              'activo'}
           </Text>
 
           {kind ===
@@ -1638,12 +3174,15 @@ function RenderCard({
         <>
           <Text>
             Aprendiz:{' '}
-            {x.aprendiz || '—'}
+            {x.aprendiz ||
+              '—'}
           </Text>
 
           <Text>
             Vehículo:{' '}
-            {x.vehiculo || '—'} ·{' '}
+            {x.vehiculo ||
+              '—'}{' '}
+            ·{' '}
             {x.placaSerial ||
               '—'}
           </Text>
@@ -1688,9 +3227,12 @@ function RenderCard({
           </Text>
 
           <Text
-            style={{ marginTop: 6 }}
+            style={{
+              marginTop: 6,
+            }}
           >
-            {x.descripcion || '—'}
+            {x.descripcion ||
+              '—'}
           </Text>
 
           <Text
@@ -1725,7 +3267,8 @@ function RenderCard({
 
           <Text>
             Dirección:{' '}
-            {x.direccion || '—'}
+            {x.direccion ||
+              '—'}
           </Text>
 
           <CenterActions
@@ -1768,15 +3311,17 @@ function RenderCard({
           setViewer(null)
         }
         name={viewer?.name}
-        title={viewer?.title}
+        title={
+          viewer?.title
+        }
       />
     </View>
   );
 }
 
 /* =========================================================
-   ADMIN ACTIONS
-   ========================================================= */
+   ACCIONES ADMIN
+========================================================= */
 
 function AdminActions({
   id,
@@ -1791,15 +3336,14 @@ function AdminActions({
         marginTop: 12,
       }}
     >
-      <View
-        style={{ flex: 1 }}
-      >
+      <View style={{ flex: 1 }}>
         <Button
           title="APROBAR"
           onPress={async () => {
             try {
               if (
-                kind === 'carnet'
+                kind ===
+                'carnet'
               ) {
                 await resources.approveCarnetRequest(
                   id
@@ -1826,16 +3370,15 @@ function AdminActions({
         />
       </View>
 
-      <View
-        style={{ flex: 1 }}
-      >
+      <View style={{ flex: 1 }}>
         <Button
           title="RECHAZAR"
           outline
           onPress={async () => {
             try {
               if (
-                kind === 'carnet'
+                kind ===
+                'carnet'
               ) {
                 await resources.rejectCarnetRequest(
                   id
@@ -1866,8 +3409,8 @@ function AdminActions({
 }
 
 /* =========================================================
-   SUPPORT
-   ========================================================= */
+   SOPORTE
+========================================================= */
 
 function SupportReply({
   id,
@@ -1878,7 +3421,9 @@ function SupportReply({
 
   return (
     <View
-      style={{ marginTop: 10 }}
+      style={{
+        marginTop: 10,
+      }}
     >
       <Field
         label="RESPUESTA"
@@ -1890,20 +3435,11 @@ function SupportReply({
       <Button
         title="RESPONDER Y RESOLVER"
         onPress={async () => {
-          if (!r.trim()) {
-            Alert.alert(
-              'Error',
-              'Escribe una respuesta.'
-            );
-            return;
-          }
-
           try {
             await resources.respondSupport(
               id,
               {
-                respuesta:
-                  r.trim(),
+                respuesta: r,
               }
             );
 
@@ -1927,7 +3463,7 @@ function SupportReply({
 
 /* =========================================================
    BLOQUEOS
-   ========================================================= */
+========================================================= */
 
 function BlockActions({
   user,
@@ -1970,8 +3506,8 @@ function BlockActions({
 }
 
 /* =========================================================
-   ADMIN VEHICLES
-   ========================================================= */
+   VEHÍCULOS ADMIN
+========================================================= */
 
 function AdminVehicleActions({
   item,
@@ -2017,50 +3553,28 @@ function AdminVehicleActions({
 
   const save = async () => {
     try {
-      if (
-        !marca.trim() ||
-        !color.trim() ||
-        !serial.trim()
-      ) {
-        throw new Error(
-          'Completa los datos obligatorios.'
-        );
-      }
-
-      if (
-        tipo === 'moto' &&
-        (!cilindraje.trim() ||
-          !modelo.trim())
-      ) {
-        throw new Error(
-          'Cilindraje y modelo son obligatorios para una moto.'
-        );
-      }
-
       await resources.updateVehicle(
         item.id,
         {
           tipo,
-          marca:
-            marca.trim(),
-          color:
-            color.trim(),
+          marca,
+          color,
           serial:
             tipo ===
             'bicicleta'
-              ? serial.trim()
+              ? serial
               : null,
           placa:
             tipo === 'moto'
-              ? serial.trim()
+              ? serial
               : null,
           cilindraje:
             tipo === 'moto'
-              ? cilindraje.trim()
+              ? cilindraje
               : null,
           modelo:
             tipo === 'moto'
-              ? modelo.trim()
+              ? modelo
               : null,
         }
       );
@@ -2077,7 +3591,9 @@ function AdminVehicleActions({
 
   return (
     <View
-      style={{ marginTop: 12 }}
+      style={{
+        marginTop: 12,
+      }}
     >
       {editing ? (
         <>
@@ -2102,13 +3618,17 @@ function AdminVehicleActions({
           <Field
             label="MARCA"
             value={marca}
-            onChangeText={setMarca}
+            onChangeText={
+              setMarca
+            }
           />
 
           <Field
             label="COLOR"
             value={color}
-            onChangeText={setColor}
+            onChangeText={
+              setColor
+            }
           />
 
           <Field
@@ -2133,7 +3653,6 @@ function AdminVehicleActions({
                 onChangeText={
                   setCilindraje
                 }
-                keyboardType="numeric"
               />
 
               <Field
@@ -2142,7 +3661,6 @@ function AdminVehicleActions({
                 onChangeText={
                   setModelo
                 }
-                keyboardType="numeric"
               />
             </>
           )}
@@ -2174,8 +3692,8 @@ function AdminVehicleActions({
 }
 
 /* =========================================================
-   COMPARE
-   ========================================================= */
+   COMPARAR DATOS
+========================================================= */
 
 function CompareData({
   title,
@@ -2229,7 +3747,9 @@ function CompareData({
   );
 }
 
-const pretty = (k: string) =>
+const pretty = (
+  k: string
+) =>
   ({
     nombres: 'Nombres',
     apellidos: 'Apellidos',
@@ -2257,7 +3777,7 @@ const pretty = (k: string) =>
 
 /* =========================================================
    CENTROS
-   ========================================================= */
+========================================================= */
 
 function CenterActions({
   item,
@@ -2285,7 +3805,9 @@ function CenterActions({
 
   return (
     <View
-      style={{ marginTop: 10 }}
+      style={{
+        marginTop: 10,
+      }}
     >
       {editing ? (
         <>
@@ -2317,32 +3839,16 @@ function CenterActions({
             title="GUARDAR"
             onPress={async () => {
               try {
-                if (
-                  !nombre.trim() ||
-                  !ciudad.trim() ||
-                  !direccion.trim()
-                ) {
-                  throw new Error(
-                    'Todos los campos son obligatorios.'
-                  );
-                }
-
                 await resources.updateCenter(
                   item.id,
                   {
-                    nombre:
-                      nombre.trim(),
-                    ciudad:
-                      ciudad.trim(),
-                    direccion:
-                      direccion.trim(),
+                    nombre,
+                    ciudad,
+                    direccion,
                   }
                 );
 
-                setEditing(
-                  false
-                );
-
+                setEditing(false);
                 load();
               } catch (e) {
                 Alert.alert(
@@ -2387,10 +3893,12 @@ function CenterActions({
                   '¿Eliminar este centro?',
                   [
                     {
-                      text: 'Cancelar',
+                      text:
+                        'Cancelar',
                     },
                     {
-                      text: 'Eliminar',
+                      text:
+                        'Eliminar',
                       style:
                         'destructive',
                       onPress:
@@ -2423,29 +3931,29 @@ function CenterActions({
 }
 
 /* =========================================================
-   DOCUMENT TYPES
-   ========================================================= */
+   DOCUMENTOS
+========================================================= */
 
 function DocActions({
   item,
   load,
 }: any) {
-  const [
-    nombre,
-    setNombre,
-  ] = useState(
-    item.nombre_documento ||
-      item.descripcion ||
-      item.nombre ||
-      ''
-  );
+  const [nombre, setNombre] =
+    useState(
+      item.nombre_documento ||
+        item.descripcion ||
+        item.nombre ||
+        ''
+    );
 
   const [editing, setEditing] =
     useState(false);
 
   return (
     <View
-      style={{ marginTop: 10 }}
+      style={{
+        marginTop: 10,
+      }}
     >
       {editing ? (
         <>
@@ -2461,28 +3969,17 @@ function DocActions({
             title="GUARDAR"
             onPress={async () => {
               try {
-                if (
-                  !nombre.trim()
-                ) {
-                  throw new Error(
-                    'El nombre es obligatorio.'
-                  );
-                }
-
                 await resources.updateDoc(
                   item.id,
                   {
                     nombre_documento:
-                      nombre.trim(),
+                      nombre,
                     descripcion:
-                      nombre.trim(),
+                      nombre,
                   }
                 );
 
-                setEditing(
-                  false
-                );
-
+                setEditing(false);
                 load();
               } catch (e) {
                 Alert.alert(
@@ -2527,10 +4024,12 @@ function DocActions({
                   '¿Eliminar este tipo?',
                   [
                     {
-                      text: 'Cancelar',
+                      text:
+                        'Cancelar',
                     },
                     {
-                      text: 'Eliminar',
+                      text:
+                        'Eliminar',
                       style:
                         'destructive',
                       onPress:
@@ -2564,7 +4063,7 @@ function DocActions({
 
 /* =========================================================
    FORM SCREEN
-   ========================================================= */
+========================================================= */
 
 function FormScreen({
   keyName,
@@ -2632,10 +4131,6 @@ function FormScreen({
   const [docTypes, setDocTypes] =
     useState<any[]>([]);
 
-  /* =======================================================
-     CARGAR INFORMACIÓN
-     ======================================================= */
-
   useEffect(() => {
     if (
       keyName === 'request' ||
@@ -2646,335 +4141,293 @@ function FormScreen({
         resources.docs(),
         resources.myVehicles(),
       ])
-        .then(([c, d, v]) => {
-          setCenters(
-            arr(c.data)
-          );
-
-          setDocTypes(
-            arr(d.data)
-          );
-
-          const vv =
-            arr(v.data)[0] ||
-            null;
-
-          setVehicle(vv);
-
-          if (vv) {
-            setTipo(
-              vv.tipo ||
-                'bicicleta'
+        .then(
+          ([c, d, v]) => {
+            setCenters(
+              arr(c.data)
             );
 
-            setMarca(
-              vv.marca || ''
+            setDocTypes(
+              arr(d.data)
             );
 
-            setColor(
-              vv.color || ''
-            );
+            const vv =
+              arr(v.data)[0] ||
+              null;
 
-            setSerial(
-              vv.tipo ===
-                'moto'
-                ? vv.placa || ''
-                : vv.serial || ''
-            );
+            setVehicle(vv);
 
-            setCilindraje(
-              vv.cilindraje ||
-                ''
-            );
+            if (vv) {
+              setTipo(
+                vv.tipo ||
+                  'bicicleta'
+              );
 
-            setModelo(
-              vv.modelo || ''
-            );
-          }
+              setMarca(
+                vv.marca || ''
+              );
 
-          if (
-            keyName ===
-            'update'
-          ) {
-            resources
-              .user(user.id)
-              .then((r) =>
-                setPersonal(
-                  r.data
+              setColor(
+                vv.color || ''
+              );
+
+              setSerial(
+                vv.tipo ===
+                  'moto'
+                  ? vv.placa ||
+                      ''
+                  : vv.serial ||
+                      ''
+              );
+
+              setCilindraje(
+                vv.cilindraje ||
+                  ''
+              );
+
+              setModelo(
+                vv.modelo || ''
+              );
+            }
+
+            if (
+              keyName ===
+              'update'
+            ) {
+              resources
+                .user(user.id)
+                .then((r) =>
+                  setPersonal(
+                    r.data
+                  )
                 )
-              )
-              .catch(() => {});
+                .catch(
+                  () => {}
+                );
+            }
           }
-        })
-        .catch((error) => {
-          console.log(
-            'ERROR CARGANDO FORMULARIO:',
-            error
-          );
-        });
+        )
+        .catch(() => {});
     }
   }, []);
-
-  /* =======================================================
-     CÁMARA
-     ======================================================= */
 
   const takePhoto = async (
     setter: any
   ) => {
-    try {
-      const permission =
-        await ImagePicker.requestCameraPermissionsAsync();
+    const p =
+      await ImagePicker.requestCameraPermissionsAsync();
 
-      if (!permission.granted) {
-        Alert.alert(
-          'Permiso requerido',
-          'Debes permitir el acceso a la cámara para tomar una foto.'
-        );
-        return;
-      }
-
-      const result =
-        await ImagePicker.launchCameraAsync(
-          {
-            mediaTypes:
-              ImagePicker.MediaTypeOptions.Images,
-            quality: 0.85,
-            allowsEditing: false,
-          }
-        );
-
-      if (
-        result.canceled ||
-        !result.assets ||
-        result.assets.length ===
-          0
-      ) {
-        return;
-      }
-
-      const selectedFile =
-        uriFile(
-          result.assets[0]
-        );
-
-      if (!selectedFile) {
-        Alert.alert(
-          'Error',
-          'No se pudo obtener la foto tomada.'
-        );
-        return;
-      }
-
-      setter(selectedFile);
-    } catch (error) {
-      console.log(
-        'ERROR AL TOMAR FOTO:',
-        error
+    if (!p.granted) {
+      return Alert.alert(
+        'Permiso',
+        'Permita el acceso a la cámara'
       );
+    }
 
-      Alert.alert(
-        'Error',
-        'No fue posible abrir la cámara.'
+    const r =
+      await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
+
+    if (!r.canceled) {
+      setter(
+        uriFile(
+          r.assets[0]
+        )
       );
     }
   };
 
-  /* =======================================================
-     GALERÍA
-     ======================================================= */
-
-  const pickFromGallery = async (setter: any) => {
-  try {
-    const permission =
+  const pickImage = async (
+    setter: any
+  ) => {
+    const p =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permission.granted) {
-      Alert.alert(
-        'Permiso requerido',
-        'Debes permitir el acceso a la galería para seleccionar una imagen.'
+    if (!p.granted) {
+      return Alert.alert(
+        'Permiso',
+        'Permita acceso a las fotos'
       );
-      return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.85,
-      allowsEditing: false,
-      allowsMultipleSelection: false,
-    });
+    const r =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.85,
+      });
 
-    if (result.canceled) {
-      return;
-    }
-
-    const asset = result.assets?.[0];
-
-    if (!asset?.uri) {
-      Alert.alert(
-        'Error',
-        'No se pudo obtener la imagen seleccionada.'
+    if (!r.canceled) {
+      setter(
+        uriFile(
+          r.assets[0]
+        )
       );
-      return;
     }
+  };
 
-    const file = uriFile(asset);
+  const pickFile = async (
+    setter: any
+  ) => {
+    const r =
+      await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
 
-    if (!file) {
-      Alert.alert(
-        'Error',
-        'No se pudo preparar la imagen para subirla.'
+    if (!r.canceled) {
+      setter(
+        uriFile(
+          r.assets[0]
+        )
       );
-      return;
     }
+  };
 
-    setter(file);
-  } catch (error) {
-    console.error('ERROR GALERÍA:', error);
-
-    Alert.alert(
-      'Error',
-      'No se pudo seleccionar la imagen.'
-    );
-  }
-};
-  /* =======================================================
-     ARCHIVO
-     ======================================================= */
-
-  const pickFromFile =
-    async (setter: any) => {
-      try {
-        const result =
-          await DocumentPicker.getDocumentAsync(
-            {
-              type: '*/*',
-              copyToCacheDirectory:
-                true,
-              multiple: false,
-            }
-          );
-
-        if (
-          result.canceled ||
-          !result.assets ||
-          result.assets.length ===
-            0
-        ) {
-          return;
-        }
-
-        const selectedFile =
-          uriFile(
-            result.assets[0]
-          );
-
-        if (!selectedFile) {
-          Alert.alert(
-            'Error',
-            'No se pudo obtener el archivo seleccionado.'
-          );
-          return;
-        }
-
-        setter(selectedFile);
-      } catch (error) {
-        console.log(
-          'ERROR AL SELECCIONAR ARCHIVO:',
-          error
-        );
-
-        Alert.alert(
-          'Error',
-          'No fue posible seleccionar el archivo.'
-        );
-      }
-    };
-
-  /* =======================================================
-     MENÚ DE ADJUNTOS
-     ======================================================= */
-
-  const pickAttachment = (
+  const chooseFileSource = (
     setter: any
   ) => {
     Alert.alert(
       'Seleccionar archivo',
-      '¿De dónde quieres obtener el archivo?',
+      '¿De dónde desea seleccionar el archivo?',
       [
         {
-          text: '📷 CÁMARA',
+          text: 'Cámara',
           onPress: () =>
             takePhoto(setter),
         },
         {
-          text: '🖼️ GALERÍA',
-          onPress: () => pickFromGallery(setter),
-        },
-        {
-          text: '📄 ARCHIVO',
+          text: 'Fotos',
           onPress: () =>
-            pickFromFile(setter),
+            pickImage(setter),
         },
         {
-          text: 'CANCELAR',
+          text: 'Archivos',
+          onPress: () =>
+            pickFile(setter),
+        },
+        {
+          text: 'Cancelar',
           style: 'cancel',
         },
       ]
     );
   };
 
-  /* =======================================================
-     AGREGAR DOCUMENTO
-     ======================================================= */
-
   const addCategory = (
     cat: string,
     label: string
   ) => {
-    pickAttachment(
-      (selectedFile: any) => {
-        if (!selectedFile) {
-          return;
-        }
+    const saveDocument = (
+      asset: any
+    ) => {
+      const f = uriFile(asset);
 
-        setDocs(
-          (previous) => {
-            const withoutOld =
-              previous.filter(
-                (item) =>
-                  item.category !==
-                  cat
-              );
-
-            return [
-              ...withoutOld,
-              {
-                ...selectedFile,
-                file:
-                  selectedFile,
-                category: cat,
-                label,
-              },
-            ];
-          }
-        );
+      if (!f) {
+        return;
       }
+
+      setDocs(
+        (p: any[]) => [
+          ...p.filter(
+            (x) =>
+              x.category !== cat
+          ),
+          {
+            ...f,
+            file: f,
+            category: cat,
+            label,
+          },
+        ]
+      );
+    };
+
+    Alert.alert(
+      'Seleccionar archivo',
+      '¿De dónde desea seleccionar el archivo?',
+      [
+        {
+          text: 'Cámara',
+          onPress: async () => {
+            const p =
+              await ImagePicker.requestCameraPermissionsAsync();
+
+            if (!p.granted) {
+              return Alert.alert(
+                'Permiso',
+                'Permita el acceso a la cámara'
+              );
+            }
+
+            const r =
+              await ImagePicker.launchCameraAsync({
+                mediaTypes: ['images'],
+                quality: 0.85,
+              });
+
+            if (!r.canceled) {
+              saveDocument(
+                r.assets[0]
+              );
+            }
+          },
+        },
+        {
+          text: 'Fotos',
+          onPress: async () => {
+            const p =
+              await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+            if (!p.granted) {
+              return Alert.alert(
+                'Permiso',
+                'Permita acceso a las fotos'
+              );
+            }
+
+            const r =
+              await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                quality: 0.85,
+              });
+
+            if (!r.canceled) {
+              saveDocument(
+                r.assets[0]
+              );
+            }
+          },
+        },
+        {
+          text: 'Archivos',
+          onPress: async () => {
+            const r =
+              await DocumentPicker.getDocumentAsync({
+                type: '*/*',
+                copyToCacheDirectory: true,
+              });
+
+            if (!r.canceled) {
+              saveDocument(
+                r.assets[0]
+              );
+            }
+          },
+        },
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+      ]
     );
   };
-
-  /* =======================================================
-     ENVIAR
-     ======================================================= */
 
   const submit = async () => {
     setLoading(true);
 
     try {
-      /* ===================================================
-         CREAR CENTRO
-         =================================================== */
-
       if (
         keyName ===
         'createCenter'
@@ -3004,13 +4457,7 @@ function FormScreen({
           'Listo',
           'Centro creado correctamente'
         );
-      }
-
-      /* ===================================================
-         CREAR DOCUMENTO
-         =================================================== */
-
-      else if (
+      } else if (
         keyName ===
         'createDoc'
       ) {
@@ -3028,7 +4475,6 @@ function FormScreen({
             sigla: serial
               .trim()
               .toUpperCase(),
-
             nombre_documento:
               asunto.trim(),
           }
@@ -3038,13 +4484,7 @@ function FormScreen({
           'Listo',
           'Tipo de documento creado correctamente'
         );
-      }
-
-      /* ===================================================
-         SOPORTE
-         =================================================== */
-
-      else if (
+      } else if (
         keyName ===
         'support'
       ) {
@@ -3070,13 +4510,7 @@ function FormScreen({
           'SENA PARKING',
           'Soporte enviado correctamente'
         );
-      }
-
-      /* ===================================================
-         PRIMERA SOLICITUD DE CARNET
-         =================================================== */
-
-      else if (
+      } else if (
         keyName ===
         'request'
       ) {
@@ -3122,7 +4556,8 @@ function FormScreen({
             (t) =>
               docs.some(
                 (d: any) =>
-                  d.category === t
+                  d.category ===
+                  t
               )
           )
         ) {
@@ -3202,18 +4637,15 @@ function FormScreen({
           'SENA PARKING',
           'Solicitud enviada correctamente'
         );
-      }
-
-      /* ===================================================
-         ACTUALIZAR DATOS
-         =================================================== */
-
-      else if (
+      } else if (
         keyName ===
         'update'
       ) {
-        let actual: any = {};
-        let nuevos: any = {};
+        let actual: any =
+          {};
+
+        let nuevos: any =
+          {};
 
         if (
           form.tipo ===
@@ -3244,50 +4676,42 @@ function FormScreen({
             ...actual,
           };
         } else {
-          if (!vehicle?.id) {
-            throw new Error(
-              'No se encontró un vehículo registrado.'
-            );
-          }
-
           actual = {
             vehiculoId:
-              vehicle.id,
+              vehicle?.id,
             tipoVehiculo:
-              vehicle.tipo,
+              vehicle?.tipo,
             marca:
-              vehicle.marca,
+              vehicle?.marca,
             color:
-              vehicle.color,
+              vehicle?.color,
             serialPlaca:
-              vehicle.tipo ===
+              vehicle?.tipo ===
               'moto'
-                ? vehicle.placa
-                : vehicle.serial,
+                ? vehicle?.placa
+                : vehicle?.serial,
             cilindraje:
-              vehicle.cilindraje,
+              vehicle?.cilindraje,
             modelo:
-              vehicle.modelo,
+              vehicle?.modelo,
           };
 
           nuevos = {
             vehiculoId:
-              vehicle.id,
+              vehicle?.id,
             tipoVehiculo:
               tipo,
-            marca:
-              marca.trim(),
-            color:
-              color.trim(),
+            marca,
+            color,
             serialPlaca:
-              serial.trim(),
+              serial,
             cilindraje:
               tipo === 'moto'
-                ? cilindraje.trim()
+                ? cilindraje
                 : '',
             modelo:
               tipo === 'moto'
-                ? modelo.trim()
+                ? modelo
                 : '',
           };
         }
@@ -3302,12 +4726,16 @@ function FormScreen({
 
         fd.append(
           'datosActuales',
-          JSON.stringify(actual)
+          JSON.stringify(
+            actual
+          )
         );
 
         fd.append(
           'datosNuevos',
-          JSON.stringify(nuevos)
+          JSON.stringify(
+            nuevos
+          )
         );
 
         if (photo) {
@@ -3343,6 +4771,7 @@ function FormScreen({
       }
 
       onDone();
+
       navigation.goBack();
     } catch (e) {
       Alert.alert(
@@ -3354,10 +4783,6 @@ function FormScreen({
     }
   };
 
-  /* =======================================================
-     OPCIONES
-     ======================================================= */
-
   const centerOptions =
     centers.map((c) => ({
       label: `${c.nombre}${
@@ -3365,7 +4790,9 @@ function FormScreen({
           ? ` — ${c.ciudad}`
           : ''
       }`,
-      value: String(c.id),
+      value: String(
+        c.id
+      ),
     }));
 
   const docOptions =
@@ -3441,15 +4868,7 @@ function FormScreen({
           ],
         ];
 
-  /* =======================================================
-     BODY
-     ======================================================= */
-
   let body: React.ReactNode;
-
-  /* =======================================================
-     NUEVO CENTRO
-     ======================================================= */
 
   if (
     keyName ===
@@ -3457,9 +4876,7 @@ function FormScreen({
   ) {
     body = (
       <>
-        <Text
-          style={common.title}
-        >
+        <Text style={common.title}>
           Nuevo centro
         </Text>
 
@@ -3488,21 +4905,13 @@ function FormScreen({
         />
       </>
     );
-  }
-
-  /* =======================================================
-     NUEVO DOCUMENTO
-     ======================================================= */
-
-  else if (
+  } else if (
     keyName ===
     'createDoc'
   ) {
     body = (
       <>
-        <Text
-          style={common.title}
-        >
+        <Text style={common.title}>
           Nuevo tipo de documento
         </Text>
 
@@ -3523,21 +4932,13 @@ function FormScreen({
         />
       </>
     );
-  }
-
-  /* =======================================================
-     SOPORTE
-     ======================================================= */
-
-  else if (
+  } else if (
     keyName ===
     'support'
   ) {
     body = (
       <>
-        <Text
-          style={common.title}
-        >
+        <Text style={common.title}>
           Soporte técnico
         </Text>
 
@@ -3560,28 +4961,22 @@ function FormScreen({
         />
       </>
     );
-  }
-
-  /* =======================================================
-     PETICIÓN CARNET
-     ======================================================= */
-
-  else if (
+  } else if (
     keyName ===
     'request'
   ) {
     body = (
       <>
-        <Text
-          style={common.title}
-        >
+        <Text style={common.title}>
           Petición de carnet
         </Text>
 
         <Text
           style={common.subtitle}
         >
-          Para la primera solicitud se mantienen los documentos requeridos.
+          Para la primera solicitud
+          se mantienen los
+          documentos requeridos.
         </Text>
 
         <SelectField
@@ -3609,13 +5004,17 @@ function FormScreen({
         <Field
           label="MARCA"
           value={marca}
-          onChangeText={setMarca}
+          onChangeText={
+            setMarca
+          }
         />
 
         <Field
           label="COLOR"
           value={color}
-          onChangeText={setColor}
+          onChangeText={
+            setColor
+          }
         />
 
         <Field
@@ -3654,101 +5053,27 @@ function FormScreen({
           </>
         )}
 
-        <Text
-          style={styles.subhead}
-        >
-          Fotografías
-        </Text>
-
         <FileButton
-          label="📷 Foto del aprendiz"
+          label="Foto del aprendiz"
           value={photo?.name}
           onPress={() =>
-            pickAttachment(
+            chooseFileSource(
               setPhoto
             )
           }
         />
 
-        {photo?.uri &&
-          isImageFile(photo) && (
-            <Image
-              source={{
-                uri: photo.uri,
-              }}
-              style={
-                styles.previewImage
-              }
-              resizeMode="cover"
-            />
-          )}
-
-        {photo && (
-          <TouchableOpacity
-            style={
-              styles.removeButton
-            }
-            onPress={() =>
-              setPhoto(null)
-            }
-          >
-            <Text
-              style={
-                styles.removeButtonText
-              }
-            >
-              ELIMINAR FOTO DEL APRENDIZ
-            </Text>
-          </TouchableOpacity>
-        )}
-
         <FileButton
-          label="📷 Foto del vehículo"
+          label="Foto del vehículo"
           value={
             vehiclePhoto?.name
           }
           onPress={() =>
-            pickAttachment(
+            chooseFileSource(
               setVehiclePhoto
             )
           }
         />
-
-        {vehiclePhoto?.uri &&
-          isImageFile(
-            vehiclePhoto
-          ) && (
-            <Image
-              source={{
-                uri: vehiclePhoto.uri,
-              }}
-              style={
-                styles.previewImage
-              }
-              resizeMode="cover"
-            />
-          )}
-
-        {vehiclePhoto && (
-          <TouchableOpacity
-            style={
-              styles.removeButton
-            }
-            onPress={() =>
-              setVehiclePhoto(
-                null
-              )
-            }
-          >
-            <Text
-              style={
-                styles.removeButtonText
-              }
-            >
-              ELIMINAR FOTO DEL VEHÍCULO
-            </Text>
-          </TouchableOpacity>
-        )}
 
         <Text
           style={styles.subhead}
@@ -3779,25 +5104,22 @@ function FormScreen({
         )}
       </>
     );
-  }
-
-  /* =======================================================
-     ACTUALIZAR DATOS
-     ======================================================= */
-
-  else {
+  } else {
     body = (
       <>
-        <Text
-          style={common.title}
-        >
+        <Text style={common.title}>
           Actualizar datos
         </Text>
 
         <Text
           style={common.subtitle}
         >
-          Solo se solicitarán los datos necesarios. La cédula es opcional y los anexos del vehículo también.
+          Solo se solicitarán los
+          datos necesarios. La
+          cédula no es un requisito
+          documental y los anexos
+          del vehículo son
+          opcionales.
         </Text>
 
         <View
@@ -3816,7 +5138,8 @@ function FormScreen({
             text="Personales"
             onPress={() => {
               setForm({
-                tipo: 'datos_personales',
+                tipo:
+                  'datos_personales',
               });
 
               setDocs([]);
@@ -3831,7 +5154,8 @@ function FormScreen({
             text="Vehículo"
             onPress={() => {
               setForm({
-                tipo: 'datos_vehiculo',
+                tipo:
+                  'datos_vehiculo',
               });
 
               setDocs([]);
@@ -3848,7 +5172,9 @@ function FormScreen({
                 personal.nombres ||
                 ''
               }
-              onChangeText={(v) =>
+              onChangeText={(
+                v
+              ) =>
                 setPersonal({
                   ...personal,
                   nombres: v,
@@ -3862,7 +5188,9 @@ function FormScreen({
                 personal.apellidos ||
                 ''
               }
-              onChangeText={(v) =>
+              onChangeText={(
+                v
+              ) =>
                 setPersonal({
                   ...personal,
                   apellidos: v,
@@ -3876,7 +5204,9 @@ function FormScreen({
                 personal.documento ||
                 ''
               }
-              onChangeText={(v) =>
+              onChangeText={(
+                v
+              ) =>
                 setPersonal({
                   ...personal,
                   documento: v,
@@ -3908,7 +5238,9 @@ function FormScreen({
                 personal.celular ||
                 ''
               }
-              onChangeText={(v) =>
+              onChangeText={(
+                v
+              ) =>
                 setPersonal({
                   ...personal,
                   celular: v,
@@ -3922,7 +5254,9 @@ function FormScreen({
                 personal.ficha ||
                 ''
               }
-              onChangeText={(v) =>
+              onChangeText={(
+                v
+              ) =>
                 setPersonal({
                   ...personal,
                   ficha: v,
@@ -3943,7 +5277,8 @@ function FormScreen({
                 borderColor:
                   colors.border,
                 borderRadius: 10,
-                color: colors.dark,
+                color:
+                  colors.dark,
                 backgroundColor:
                   colors.bg,
               }}
@@ -4003,46 +5338,16 @@ function FormScreen({
             />
 
             <FileButton
-              label="📷 Foto nueva (opcional)"
-              value={photo?.name}
+              label="Foto nueva (opcional)"
+              value={
+                photo?.name
+              }
               onPress={() =>
-                pickAttachment(
+                chooseFileSource(
                   setPhoto
                 )
               }
             />
-
-            {photo?.uri &&
-              isImageFile(photo) && (
-                <Image
-                  source={{
-                    uri: photo.uri,
-                  }}
-                  style={
-                    styles.previewImage
-                  }
-                  resizeMode="cover"
-                />
-              )}
-
-            {photo && (
-              <TouchableOpacity
-                style={
-                  styles.removeButton
-                }
-                onPress={() =>
-                  setPhoto(null)
-                }
-              >
-                <Text
-                  style={
-                    styles.removeButtonText
-                  }
-                >
-                  ELIMINAR FOTO
-                </Text>
-              </TouchableOpacity>
-            )}
           </>
         ) : (
           <>
@@ -4084,7 +5389,8 @@ function FormScreen({
                     'bicicleta',
                 },
                 {
-                  label: 'Moto',
+                  label:
+                    'Moto',
                   value: 'moto',
                 },
               ]}
@@ -4097,13 +5403,17 @@ function FormScreen({
             <Field
               label="MARCA"
               value={marca}
-              onChangeText={setMarca}
+              onChangeText={
+                setMarca
+              }
             />
 
             <Field
               label="COLOR"
               value={color}
-              onChangeText={setColor}
+              onChangeText={
+                setColor
+              }
             />
 
             <Field
@@ -4128,7 +5438,6 @@ function FormScreen({
                   onChangeText={
                     setCilindraje
                   }
-                  keyboardType="numeric"
                 />
 
                 <Field
@@ -4137,7 +5446,6 @@ function FormScreen({
                   onChangeText={
                     setModelo
                   }
-                  keyboardType="numeric"
                 />
               </>
             )}
@@ -4147,7 +5455,9 @@ function FormScreen({
                 styles.subhead
               }
             >
-              Documentos del vehículo — todos opcionales
+              Documentos del
+              vehículo — todos
+              opcionales
             </Text>
 
             {updateVehicleCategories.map(
@@ -4183,7 +5493,9 @@ function FormScreen({
     >
       <Header
         title={title}
-        navigation={navigation}
+        navigation={
+          navigation
+        }
         onMenu={() => {}}
       />
 
@@ -4210,7 +5522,7 @@ function FormScreen({
 
 /* =========================================================
    FILE BUTTON
-   ========================================================= */
+========================================================= */
 
 function FileButton({
   label,
@@ -4223,7 +5535,6 @@ function FileButton({
       style={
         styles.filePicker
       }
-      activeOpacity={0.7}
     >
       <Text
         style={{
@@ -4240,7 +5551,6 @@ function FileButton({
           color: colors.muted,
           marginTop: 4,
         }}
-        numberOfLines={2}
       >
         {value ||
           'Seleccionar archivo'}
@@ -4251,7 +5561,7 @@ function FileButton({
 
 /* =========================================================
    HOME
-   ========================================================= */
+========================================================= */
 
 function InfoHome({
   title,
@@ -4259,7 +5569,8 @@ function InfoHome({
   user,
 }: any) {
   const role =
-    user?.rol || 'aprendiz';
+    user?.rol ||
+    'aprendiz';
 
   return (
     <View
@@ -4267,7 +5578,9 @@ function InfoHome({
     >
       <Header
         title={title}
-        navigation={navigation}
+        navigation={
+          navigation
+        }
       />
 
       <ScrollView
@@ -4291,7 +5604,8 @@ function InfoHome({
               styles.heroTitle
             }
           >
-            Control y gestión de acceso
+            Control y gestión
+            de acceso
           </Text>
 
           <Text
@@ -4299,7 +5613,12 @@ function InfoHome({
               styles.heroText
             }
           >
-            Plataforma móvil para apoyar la administración del parqueadero, la identificación de aprendices y el control de entradas y salidas.
+            Plataforma móvil para
+            apoyar la administración
+            del parqueadero, la
+            identificación de
+            aprendices y el control
+            de entradas y salidas.
           </Text>
         </View>
 
@@ -4318,7 +5637,12 @@ function InfoHome({
               color: colors.text,
             }}
           >
-            Desde el menú puedes consultar únicamente las funciones habilitadas para tu perfil. Esta pantalla es informativa y no realiza operaciones.
+            Desde el menú puedes
+            consultar únicamente
+            las funciones habilitadas
+            para tu perfil. Esta
+            pantalla es informativa
+            y no realiza operaciones.
           </Text>
         </View>
 
@@ -4334,27 +5658,43 @@ function InfoHome({
           </Text>
 
           <Text
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
-            • Mantén tus datos actualizados.
+            • Mantén tus datos
+            actualizados.
           </Text>
 
           <Text
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
-            • Consulta documentos y solicitudes cuando estén disponibles.
+            • Consulta documentos y
+            solicitudes cuando estén
+            disponibles.
           </Text>
 
           <Text
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
-            • Revisa las notificaciones para conocer respuestas y novedades.
+            • Revisa las
+            notificaciones para
+            conocer respuestas y
+            novedades.
           </Text>
 
           <Text
-            style={styles.infoRow}
+            style={
+              styles.infoRow
+            }
           >
-            • El personal de guarda valida el carnet mediante QR.
+            • El personal de guarda
+            valida el carnet mediante
+            QR.
           </Text>
         </View>
       </ScrollView>
@@ -4364,7 +5704,7 @@ function InfoHome({
 
 /* =========================================================
    MANUAL
-   ========================================================= */
+========================================================= */
 
 function Manual({
   title,
@@ -4372,7 +5712,8 @@ function Manual({
   user,
 }: any) {
   const role =
-    user?.rol || 'aprendiz';
+    user?.rol ||
+    'aprendiz';
 
   const content: any = {
     aprendiz: [
@@ -4394,7 +5735,7 @@ function Manual({
       [
         '04',
         'Actualizar datos',
-        'En datos personales la cédula es opcional. En vehículo, serial y documentos son opcionales.',
+        'En datos personales la cédula es opcional y no se solicitan fotos de serial, tarjeta de propiedad ni foto de cédula. En vehículo, serial y documentos son opcionales; en moto los documentos son opcionales.',
       ],
       [
         '05',
@@ -4404,7 +5745,7 @@ function Manual({
       [
         '06',
         'Notificaciones',
-        'La campana muestra las notificaciones y respuestas de soporte.',
+        'La campana muestra el contador de pendientes y las respuestas de soporte aparecen como notificaciones.',
       ],
       [
         '07',
@@ -4432,7 +5773,7 @@ function Manual({
       [
         '04',
         'Reportes',
-        'Desde Entrada y salida puedes generar un resumen diario, semanal o mensual.',
+        'Desde Entrada y salida puedes generar un resumen diario, semanal o mensual con totales y movimientos del periodo.',
       ],
     ],
 
@@ -4460,12 +5801,12 @@ function Manual({
       [
         '05',
         'Soporte técnico',
-        'Atiende solicitudes y responde al aprendiz.',
+        'Atiende solicitudes y responde al aprendiz. Al resolver una solicitud se envía una notificación automáticamente.',
       ],
       [
         '06',
         'Entradas y salidas',
-        'Consulta el historial paginado y genera reportes.',
+        'Consulta el historial paginado de 10 en 10 y genera reportes por día, semana o mes.',
       ],
       [
         '07',
@@ -4484,7 +5825,9 @@ function Manual({
     >
       <Header
         title={title}
-        navigation={navigation}
+        navigation={
+          navigation
+        }
       />
 
       <ScrollView
@@ -4504,9 +5847,12 @@ function Manual({
           </Text>
 
           <Text
-            style={common.subtitle}
+            style={
+              common.subtitle
+            }
           >
-            Guía rápida para utilizar SENA Parking.
+            Guía rápida para utilizar
+            SENA Parking.
           </Text>
         </View>
 
@@ -4563,8 +5909,8 @@ function Manual({
 }
 
 /* =========================================================
-   STYLES
-   ========================================================= */
+   ESTILOS
+========================================================= */
 
 const styles: any = {
   logo: {
@@ -4663,7 +6009,8 @@ const styles: any = {
     padding: 12,
     marginTop: 9,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
     borderRadius: 12,
     backgroundColor: '#fff',
   },
@@ -4692,37 +6039,12 @@ const styles: any = {
 
   filePicker: {
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
     borderRadius: 10,
     padding: 14,
     marginTop: 12,
     backgroundColor: '#fff',
-  },
-
-  previewImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 12,
-    marginTop: 10,
-  },
-
-  removeButton: {
-    marginTop: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 10,
-    backgroundColor:
-      '#FDECEC',
-    borderWidth: 1,
-    borderColor:
-      '#F5B5B5',
-  },
-
-  removeButtonText: {
-    textAlign: 'center',
-    fontWeight: '900',
-    color: '#B42318',
-    fontSize: 12,
   },
 
   hero: {
@@ -4772,7 +6094,8 @@ const styles: any = {
   manualCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor:
+      colors.border,
     borderRadius: 16,
     padding: 16,
     marginBottom: 12,
@@ -4802,7 +6125,6 @@ const styles: any = {
   reportTitle: {
     fontWeight: '900',
     color: colors.dark,
-    marginBottom: 6,
+    marginBottom: 8,
   },
 };
-

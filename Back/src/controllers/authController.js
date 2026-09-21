@@ -1273,66 +1273,156 @@ const reenviarPin = async (
 
 
 // ==========================================
-// OBTENER TODOS LOS USUARIOS
+// OBTENER USUARIOS CON PAGINACIÓN Y BÚSQUEDA
 // ==========================================
 
-const getUsers = async (
-  req,
-  res
-) => {
-
+const getUsers = async (req, res) => {
   try {
+    // ==========================================
+    // PAGINACIÓN
+    // ==========================================
 
-    const {
-      nombre = ""
-    } = req.query;
+    const pageRaw = Number.parseInt(req.query.page, 10);
+    const limitRaw = Number.parseInt(req.query.limit, 10);
 
+    const page =
+      Number.isFinite(pageRaw) && pageRaw > 0
+        ? pageRaw
+        : 1;
 
-    if (
-      typeof nombre !==
-      "string"
-    ) {
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0
+        ? Math.min(limitRaw, 50)
+        : 10;
+
+    // ==========================================
+    // BÚSQUEDA
+    // ==========================================
+
+    /*
+     * Se acepta "search" para la nueva búsqueda.
+     *
+     * También se acepta "nombre" para mantener
+     * compatibilidad con el código anterior.
+     */
+
+    const searchParam =
+      req.query.search !== undefined
+        ? req.query.search
+        : req.query.nombre !== undefined
+        ? req.query.nombre
+        : "";
+
+    if (typeof searchParam !== "string") {
       return res.status(400).json({
         message:
-          "El nombre de búsqueda no es válido"
+          "El término de búsqueda no es válido",
       });
     }
 
+    const search = searchParam
+      .trim()
+      .slice(0, 100);
 
-    const users =
-      await User.findAll({
+    // ==========================================
+    // CONDICIÓN DE BÚSQUEDA
+    // ==========================================
 
-        where: {
+    const where = {};
+
+    if (search) {
+      where[Op.or] = [
+        {
           nombres: {
-            [Op.like]:
-              `%${nombre.trim()}%`
-          }
+            [Op.like]: `%${search}%`,
+          },
         },
+        {
+          apellidos: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          documento: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      ];
+    }
 
-        attributes: {
-          exclude: [
-            "password",
-            "pinRecuperacion",
-            "fechaPin"
-          ]
-        }
-      });
+    // ==========================================
+    // PAGINACIÓN
+    // ==========================================
 
+    const offset =
+      (page - 1) * limit;
 
-    return res.status(200).json(
-      users
-    );
+    // ==========================================
+    // CONSULTAR USUARIOS
+    // ==========================================
 
+    const {
+      count,
+      rows,
+    } = await User.findAndCountAll({
+      where,
+
+      attributes: {
+        exclude: [
+          "password",
+          "pinRecuperacion",
+          "fechaPin",
+        ],
+      },
+
+      include: [
+        {
+          model: CentroFormacion,
+          as: "centroFormacion",
+          required: false,
+        },
+      ],
+
+      order: [
+        ["nombres", "ASC"],
+        ["apellidos", "ASC"],
+      ],
+
+      limit,
+      offset,
+
+      distinct: true,
+    });
+
+    // ==========================================
+    // RESPUESTA
+    // ==========================================
+
+    return res.status(200).json({
+      success: true,
+
+      total: count,
+
+      page,
+
+      limit,
+
+      totalPages:
+        Math.ceil(count / limit),
+
+      data: rows,
+    });
   } catch (error) {
-
     console.error(
       "ERROR GET USERS:",
       error
     );
 
     return res.status(500).json({
+      success: false,
       message:
-        "Error obteniendo usuarios"
+        "Error obteniendo usuarios",
+      error: error.message,
     });
   }
 };

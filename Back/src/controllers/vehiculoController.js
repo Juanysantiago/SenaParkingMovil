@@ -1,3 +1,5 @@
+const { Op } = require("sequelize");
+
 const Vehiculo = require("../models/Vehiculo");
 const { User, CentroFormacion } = require("../models");
 
@@ -55,12 +57,14 @@ const createVehiculo = async (req, res) => {
       foto_principal,
       foto_secundaria,
 
-      // IMPORTANTE:
-      // El propietario SIEMPRE es el usuario autenticado.
+      // =================================================
+      // EL PROPIETARIO SIEMPRE ES EL USUARIO LOGUEADO
+      // =================================================
       userId: req.user.id,
     });
 
     return res.status(201).json({
+      success: true,
       message: "Vehículo creado correctamente",
       data: nuevo,
     });
@@ -68,6 +72,7 @@ const createVehiculo = async (req, res) => {
     console.error("ERROR CREANDO VEHÍCULO:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error creando vehículo",
       error: error.message,
     });
@@ -75,8 +80,13 @@ const createVehiculo = async (req, res) => {
 };
 
 // =====================================================
-// OBTENER TODOS LOS VEHÍCULOS
-// SOLO PARA ADMINISTRADOR
+// OBTENER VEHÍCULOS
+//
+// ADMINISTRADOR → TODOS
+// GUARDA        → TODOS
+// APRENDIZ      → SOLAMENTE LOS SUYOS
+//
+// PAGINACIÓN + BÚSQUEDA POR SERIAL O PLACA
 // =====================================================
 const getVehiculos = async (req, res) => {
   try {
@@ -86,18 +96,87 @@ const getVehiculos = async (req, res) => {
       });
     }
 
-    // Un aprendiz no debe poder obtener todos los vehículos.
-    if (req.user.rol !== "administrador") {
-      return res.status(403).json({
-        message: "No tienes permisos para consultar todos los vehículos",
-      });
+    // =================================================
+    // PAGINACIÓN
+    // =================================================
+    let page = parseInt(req.query.page, 10);
+    let limit = parseInt(req.query.limit, 10);
+
+    if (isNaN(page) || page < 1) {
+      page = 1;
     }
 
-    const data = await Vehiculo.findAll({
+    if (isNaN(limit) || limit < 1) {
+      limit = 10;
+    }
+
+    // Máximo 50 registros por página
+    if (limit > 50) {
+      limit = 50;
+    }
+
+    const offset = (page - 1) * limit;
+
+    // =================================================
+    // BÚSQUEDA
+    // =================================================
+    let search = "";
+
+    if (typeof req.query.search === "string") {
+      search = req.query.search.trim();
+    }
+
+    // Evitar búsquedas demasiado largas
+    if (search.length > 100) {
+      search = search.substring(0, 100);
+    }
+
+    // =================================================
+    // FILTRO PRINCIPAL
+    // =================================================
+    const where = {};
+
+    // =================================================
+    // APRENDIZ
+    //
+    // MUY IMPORTANTE:
+    // El ID sale del JWT mediante req.user.id.
+    //
+    // No usamos un userId enviado desde React Native.
+    // =================================================
+    if (req.user.rol === "aprendiz") {
+      where.userId = req.user.id;
+    }
+
+    // =================================================
+    // BÚSQUEDA POR SERIAL O PLACA
+    // =================================================
+    if (search) {
+      where[Op.or] = [
+        {
+          serial: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          placa: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      ];
+    }
+
+    // =================================================
+    // CONSULTA
+    // =================================================
+    const { count, rows } = await Vehiculo.findAndCountAll({
+      where,
+
       include: [
         {
           model: User,
           as: "User",
+
           attributes: [
             "id",
             "nombres",
@@ -112,27 +191,44 @@ const getVehiculos = async (req, res) => {
             "fechaFinalizacion",
             "foto",
           ],
+
           include: [
             {
               model: CentroFormacion,
               as: "centroFormacion",
-              attributes: ["id", "nombre"],
+
+              attributes: [
+                "id",
+                "nombre",
+              ],
             },
           ],
         },
       ],
+
       order: [["createdAt", "DESC"]],
+
+      limit,
+      offset,
+
+      distinct: true,
     });
+
+    const totalPages = Math.ceil(count / limit);
 
     return res.status(200).json({
       success: true,
-      total: data.length,
-      data,
+      total: count,
+      page,
+      limit,
+      totalPages,
+      data: rows,
     });
   } catch (error) {
     console.error("ERROR OBTENIENDO VEHÍCULOS:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error obteniendo vehículos",
       error: error.message,
     });
@@ -141,7 +237,10 @@ const getVehiculos = async (req, res) => {
 
 // =====================================================
 // OBTENER MIS VEHÍCULOS
-// SOLO VEHÍCULOS DEL USUARIO AUTENTICADO
+//
+// ESTA FUNCIÓN TAMBIÉN QUEDA DISPONIBLE.
+//
+// SOLAMENTE VEHÍCULOS DEL USUARIO AUTENTICADO.
 // =====================================================
 const getMisVehiculos = async (req, res) => {
   try {
@@ -151,17 +250,75 @@ const getMisVehiculos = async (req, res) => {
       });
     }
 
+    // El ID sale directamente del JWT
     const userId = req.user.id;
 
-    const vehiculos = await Vehiculo.findAll({
-      where: {
-        userId: userId,
-      },
+    // =================================================
+    // PAGINACIÓN
+    // =================================================
+    let page = parseInt(req.query.page, 10);
+    let limit = parseInt(req.query.limit, 10);
+
+    if (isNaN(page) || page < 1) {
+      page = 1;
+    }
+
+    if (isNaN(limit) || limit < 1) {
+      limit = 10;
+    }
+
+    if (limit > 50) {
+      limit = 50;
+    }
+
+    const offset = (page - 1) * limit;
+
+    // =================================================
+    // BÚSQUEDA
+    // =================================================
+    let search = "";
+
+    if (typeof req.query.search === "string") {
+      search = req.query.search.trim();
+    }
+
+    if (search.length > 100) {
+      search = search.substring(0, 100);
+    }
+
+    // =================================================
+    // FILTRO
+    // =================================================
+    const where = {
+      userId: userId,
+    };
+
+    if (search) {
+      where[Op.or] = [
+        {
+          serial: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+        {
+          placa: {
+            [Op.like]: `%${search}%`,
+          },
+        },
+      ];
+    }
+
+    // =================================================
+    // CONSULTA
+    // =================================================
+    const { count, rows } = await Vehiculo.findAndCountAll({
+      where,
 
       include: [
         {
           model: User,
           as: "User",
+
           attributes: [
             "id",
             "nombres",
@@ -174,10 +331,12 @@ const getMisVehiculos = async (req, res) => {
             "centroFormacionId",
             "foto",
           ],
+
           include: [
             {
               model: CentroFormacion,
               as: "centroFormacion",
+
               attributes: [
                 "id",
                 "nombre",
@@ -190,17 +349,28 @@ const getMisVehiculos = async (req, res) => {
       ],
 
       order: [["createdAt", "DESC"]],
+
+      limit,
+      offset,
+
+      distinct: true,
     });
+
+    const totalPages = Math.ceil(count / limit);
 
     return res.status(200).json({
       success: true,
-      total: vehiculos.length,
-      data: vehiculos,
+      total: count,
+      page,
+      limit,
+      totalPages,
+      data: rows,
     });
   } catch (error) {
     console.error("ERROR OBTENIENDO MIS VEHÍCULOS:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error obteniendo mis vehículos",
       error: error.message,
     });
@@ -209,6 +379,10 @@ const getMisVehiculos = async (req, res) => {
 
 // =====================================================
 // OBTENER VEHÍCULO POR ID
+//
+// ADMINISTRADOR → CUALQUIERA
+// GUARDA        → CUALQUIERA
+// APRENDIZ      → SOLAMENTE UNO PROPIO
 // =====================================================
 const getVehiculoById = async (req, res) => {
   try {
@@ -223,6 +397,7 @@ const getVehiculoById = async (req, res) => {
         {
           model: User,
           as: "User",
+
           attributes: [
             "id",
             "nombres",
@@ -245,10 +420,27 @@ const getVehiculoById = async (req, res) => {
       });
     }
 
-    // Si NO es administrador, solamente puede consultar
-    // vehículos que le pertenecen.
+    // =================================================
+    // ADMINISTRADOR Y GUARDA
+    //
+    // Pueden consultar cualquier vehículo.
+    // =================================================
     if (
-      req.user.rol !== "administrador" &&
+      ["administrador", "guarda"].includes(req.user.rol)
+    ) {
+      return res.status(200).json({
+        success: true,
+        data: vehiculo,
+      });
+    }
+
+    // =================================================
+    // APRENDIZ
+    //
+    // Solamente puede consultar su propio vehículo.
+    // =================================================
+    if (
+      req.user.rol === "aprendiz" &&
       Number(vehiculo.userId) !== Number(req.user.id)
     ) {
       return res.status(403).json({
@@ -256,13 +448,22 @@ const getVehiculoById = async (req, res) => {
       });
     }
 
+    // Si el rol no está autorizado
+    if (req.user.rol !== "aprendiz") {
+      return res.status(403).json({
+        message: "No tienes permiso para consultar este vehículo",
+      });
+    }
+
     return res.status(200).json({
+      success: true,
       data: vehiculo,
     });
   } catch (error) {
     console.error("ERROR OBTENIENDO VEHÍCULO:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error obteniendo vehículo",
       error: error.message,
     });
@@ -271,6 +472,10 @@ const getVehiculoById = async (req, res) => {
 
 // =====================================================
 // ACTUALIZAR VEHÍCULO
+//
+// ADMINISTRADOR → CUALQUIERA
+// APRENDIZ      → SOLAMENTE EL SUYO
+// GUARDA        → NO PUEDE MODIFICAR
 // =====================================================
 const updateVehiculo = async (req, res) => {
   try {
@@ -288,34 +493,64 @@ const updateVehiculo = async (req, res) => {
       });
     }
 
-    // Un aprendiz solamente puede modificar SUS vehículos.
-    if (
-      req.user.rol !== "administrador" &&
-      Number(vehiculo.userId) !== Number(req.user.id)
-    ) {
-      return res.status(403).json({
-        message: "No tienes permiso para modificar este vehículo",
+    // =================================================
+    // ADMINISTRADOR
+    // Puede modificar cualquier vehículo.
+    // =================================================
+    if (req.user.rol === "administrador") {
+      const datosActualizacion = {
+        ...req.body,
+      };
+
+      // Nunca permitir cambiar propietario
+      delete datosActualizacion.userId;
+
+      await vehiculo.update(datosActualizacion);
+
+      return res.status(200).json({
+        success: true,
+        message: "Vehículo actualizado correctamente",
+        data: vehiculo,
       });
     }
 
-    // Evitamos que un aprendiz cambie el propietario
-    // enviando otro userId desde Postman o la aplicación.
-    const datosActualizacion = {
-      ...req.body,
-    };
+    // =================================================
+    // APRENDIZ
+    // Solamente puede modificar su vehículo.
+    // =================================================
+    if (req.user.rol === "aprendiz") {
+      if (
+        Number(vehiculo.userId) !== Number(req.user.id)
+      ) {
+        return res.status(403).json({
+          message: "No tienes permiso para modificar este vehículo",
+        });
+      }
 
-    delete datosActualizacion.userId;
+      const datosActualizacion = {
+        ...req.body,
+      };
 
-    await vehiculo.update(datosActualizacion);
+      // Nunca permitir cambiar propietario
+      delete datosActualizacion.userId;
 
-    return res.status(200).json({
-      message: "Vehículo actualizado correctamente",
-      data: vehiculo,
+      await vehiculo.update(datosActualizacion);
+
+      return res.status(200).json({
+        success: true,
+        message: "Vehículo actualizado correctamente",
+        data: vehiculo,
+      });
+    }
+
+    return res.status(403).json({
+      message: "No tienes permiso para modificar este vehículo",
     });
   } catch (error) {
     console.error("ERROR ACTUALIZANDO VEHÍCULO:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error actualizando vehículo",
       error: error.message,
     });
@@ -324,6 +559,10 @@ const updateVehiculo = async (req, res) => {
 
 // =====================================================
 // ELIMINAR VEHÍCULO
+//
+// ADMINISTRADOR → CUALQUIERA
+// APRENDIZ      → SOLAMENTE EL SUYO
+// GUARDA        → NO PUEDE ELIMINAR
 // =====================================================
 const deleteVehiculo = async (req, res) => {
   try {
@@ -341,25 +580,48 @@ const deleteVehiculo = async (req, res) => {
       });
     }
 
-    // Un aprendiz solamente puede eliminar SUS vehículos.
-    if (
-      req.user.rol !== "administrador" &&
-      Number(vehiculo.userId) !== Number(req.user.id)
-    ) {
-      return res.status(403).json({
-        message: "No tienes permiso para eliminar este vehículo",
+    // =================================================
+    // ADMINISTRADOR
+    // Puede eliminar cualquier vehículo.
+    // =================================================
+    if (req.user.rol === "administrador") {
+      await vehiculo.destroy();
+
+      return res.status(200).json({
+        success: true,
+        message: "Vehículo eliminado correctamente",
       });
     }
 
-    await vehiculo.destroy();
+    // =================================================
+    // APRENDIZ
+    // Solamente puede eliminar su propio vehículo.
+    // =================================================
+    if (req.user.rol === "aprendiz") {
+      if (
+        Number(vehiculo.userId) !== Number(req.user.id)
+      ) {
+        return res.status(403).json({
+          message: "No tienes permiso para eliminar este vehículo",
+        });
+      }
 
-    return res.status(200).json({
-      message: "Vehículo eliminado correctamente",
+      await vehiculo.destroy();
+
+      return res.status(200).json({
+        success: true,
+        message: "Vehículo eliminado correctamente",
+      });
+    }
+
+    return res.status(403).json({
+      message: "No tienes permiso para eliminar este vehículo",
     });
   } catch (error) {
     console.error("ERROR ELIMINANDO VEHÍCULO:", error);
 
     return res.status(500).json({
+      success: false,
       message: "Error eliminando vehículo",
       error: error.message,
     });
@@ -377,3 +639,4 @@ module.exports = {
   deleteVehiculo,
   getMisVehiculos,
 };
+
