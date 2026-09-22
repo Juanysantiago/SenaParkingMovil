@@ -79,6 +79,7 @@ const uriFile = (a: any) =>
 const menus: any = {
   aprendiz: [
     ['home', 'Inicio', '⌂'],
+    ['perfil', 'Mi perfil', '👤'],
     ['carnet', 'Visualizar carnet', '▣'],
     ['request', 'Petición de carnet', '▤'],
     ['update', 'Actualizar datos', '✎'],
@@ -134,6 +135,8 @@ function RoleDrawer({
 
     if (k === 'home') {
       navigation.navigate('Dashboard');
+    } else if (k === 'perfil') {
+      navigation.navigate('PerfilAprendiz');
     } else if (k === 'carnet') {
       navigation.navigate('Carnet');
     } else if (k === 'scanner') {
@@ -1560,6 +1563,7 @@ export default function FeatureScreen({
                 x={x}
                 i={i}
                 kind={key}
+                currentUser={user}
                 load={() => {
                   if (isVehicleKey) {
                     load(
@@ -2582,6 +2586,7 @@ function RenderCard({
   kind,
   i,
   load,
+  currentUser,
 }: any) {
   const [viewer, setViewer] =
     useState<any>(null);
@@ -3217,6 +3222,48 @@ function RenderCard({
               ? '🟢 Dentro'
               : '⚪ Fuera'}
           </Text>
+
+          {currentUser?.rol === 'guarda' && (
+            <View style={{ marginTop: 12 }}>
+              <Button
+                title="ELIMINAR REGISTRO"
+                outline
+                onPress={() =>
+                  Alert.alert(
+                    'Eliminar registro',
+                    `¿Seguro que deseas eliminar el registro #${x.id}? Esta acción no se puede deshacer.`,
+                    [
+                      {
+                        text: 'Cancelar',
+                        style: 'cancel',
+                      },
+                      {
+                        text: 'Eliminar',
+                        style: 'destructive',
+                        onPress: async () => {
+                          try {
+                            await resources.deleteRecord(x.id);
+
+                            Alert.alert(
+                              'Registro eliminado',
+                              'El registro de entrada y salida fue eliminado correctamente.'
+                            );
+
+                            load();
+                          } catch (e) {
+                            Alert.alert(
+                              'Error',
+                              messageOf(e)
+                            );
+                          }
+                        },
+                      },
+                    ]
+                  )
+                }
+              />
+            </View>
+          )}
         </>
       ) : kind ===
         'reports' ? (

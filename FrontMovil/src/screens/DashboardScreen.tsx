@@ -9,7 +9,7 @@ import Header from '../components/Header';
 
 type P=NativeStackScreenProps<RootStackParamList,'Dashboard'>;
 const menus:any={
- aprendiz:[['home','Inicio','⌂'],['carnet','Visualizar carnet','▣'],['request','Petición de carnet','▤'],['update','Actualizar datos','✎'],['vehicles','Mis vehículos','🚗'],['support','Soporte técnico','⚙'],['notifications','Notificaciones','🔔'],['manual','Manual de uso','?']],
+ aprendiz:[['home','Inicio','⌂'],['perfil','Mi perfil','👤'],['carnet','Visualizar carnet','▣'],['request','Petición de carnet','▤'],['update','Actualizar datos','✎'],['vehicles','Mis vehículos','🚗'],['support','Soporte técnico','⚙'],['notifications','Notificaciones','🔔'],['manual','Manual de uso','?']],
  guarda:[['home','Inicio','⌂'],['scanner','Escanear QR','⌗'],['records','Entrada y salida','↕'],['manual','Manual de uso','?']],
  administrador:[['home','Inicio','⌂'],['pending','Peticiones de carnet','✓'],['updateRequests','Peticiones actualización','↻'],['vehicles','Vehículos','🚗'],['blocks','Bloqueos','⛔'],['reports','Reportes','▤'],['centers','Centros de formación','⌖'],['docs','Tipos de documento','▥'],['users','Usuarios','♟'],['supportAdmin','Soporte técnico','◉'],['records','Entradas y salidas','↕']]
 };
@@ -17,7 +17,7 @@ export default function DashboardScreen({navigation}:P){
  const [user,setUser]=useState<any>({}); const [drawer,setDrawer]=useState(false); const [unread,setUnread]=useState(0);
  useEffect(()=>{(async()=>{const x=await AsyncStorage.getItem('user');if(x)setUser(JSON.parse(x));loadUnread()})()},[]);
  const loadUnread=async()=>{try{const r=await resources.notifications();const a=Array.isArray(r.data)?r.data:[];setUnread(a.filter((n:any)=>n.leida===false||n.leido===false).length)}catch{}};
- const go=(key:string,title:string)=>{setDrawer(false); if(key==='carnet') navigation.navigate('Carnet'); else if(key==='scanner') navigation.navigate('Scanner'); else navigation.navigate('Feature',{key,title});};
+ const go=(key:string,title:string)=>{setDrawer(false); if(key==='perfil') navigation.navigate('PerfilAprendiz'); else if(key==='carnet') navigation.navigate('Carnet'); else if(key==='scanner') navigation.navigate('Scanner'); else navigation.navigate('Feature',{key,title});};
  const logout=async()=>{try{await auth.logout()}catch{}await AsyncStorage.multiRemove(['accessToken','user','emailRecuperacion']);navigation.replace('Login')};
  const role=user.rol||'aprendiz'; const list=menus[role]||menus.aprendiz;
  return <View style={common.screen}><Header title="SENA PARKING" subtitle={`${user.nombres||''} ${user.apellidos||''}`} onMenu={()=>setDrawer(true)} onBell={role==='aprendiz'?()=>go('notifications','Notificaciones'):undefined} badge={unread}/>

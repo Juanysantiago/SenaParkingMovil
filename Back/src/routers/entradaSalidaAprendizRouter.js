@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const verifyToken = require("../middlewares/verifyToken");
+const authorizeRoles = require("../middlewares/roles");
 
 const {
   createRegistro,
@@ -208,6 +209,7 @@ router.patch(
 router.delete(
   "/entrada-salida-aprendiz/:id",
   verifyToken,
+  authorizeRoles("guarda", "administrador"),
   deleteRegistro
 );
 

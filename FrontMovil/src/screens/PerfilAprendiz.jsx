@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 
-import { auth, fileUrl, messageOf } from '../../data/api';
+import { auth, fileUrl, messageOf } from '../data/api';
 
 export default function PerfilAprendiz() {
   const [usuario, setUsuario] = useState(null);
@@ -106,7 +106,7 @@ export default function PerfilAprendiz() {
   const programa =
     usuario?.programa ||
     usuario?.programaFormacion ||
-    'Análisis y Desarrollo de Software (ADSO)';
+    'No registrado';
 
   // ============================================================
   // FOTO

@@ -1,6 +1,7 @@
 const { Op } = require("sequelize");
 const User = require("../models/User");
 const CentroFormacion = require("../models/CentroFormacion");
+const Vehiculo = require("../models/Vehiculo");
 const TipoDocumento = require("../models/TipoDocumento");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -2127,7 +2128,28 @@ const obtenerMiPerfil = async (
               "pinRecuperacion",
               "fechaPin"
             ]
-          }
+          },
+          include: [
+            {
+              model: CentroFormacion,
+              as: "centroFormacion",
+              attributes: ["id", "nombre", "ciudad", "direccion"]
+            },
+            {
+              model: Vehiculo,
+              as: "vehiculos",
+              attributes: [
+                "id",
+                "tipo",
+                "marca",
+                "color",
+                "serial",
+                "placa",
+                "cilindraje",
+                "modelo"
+              ]
+            }
+          ]
         }
       );
 

@@ -15,6 +15,7 @@ import FeatureScreen from './src/screens/FeatureScreen';
 import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
 import CarnetScreen from './src/screens/CarnetScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
+import PerfilAprendiz from './src/screens/PerfilAprendiz';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -26,6 +27,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Carnet: undefined;
   Scanner: undefined;
+  PerfilAprendiz: undefined;
   Feature: {
     key: string;
     title: string;
@@ -118,6 +120,12 @@ export default function App() {
         <Stack.Screen
           name="Scanner"
           component={ScannerScreen}
+        />
+
+        {/* Pantalla de perfil del aprendiz */}
+        <Stack.Screen
+          name="PerfilAprendiz"
+          component={PerfilAprendiz}
         />
 
         <Stack.Screen

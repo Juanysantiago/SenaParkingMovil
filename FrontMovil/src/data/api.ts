@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  'http://10.81.233.141:3000';
+  'http://192.168.10.9:3000';
 
 /* =========================================================
    AXIOS
