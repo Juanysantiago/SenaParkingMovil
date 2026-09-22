@@ -43,9 +43,7 @@ app.use(
 app.use("/auth", require("./routers/authRouter"));
 
 app.use("/api", require("./routers/tipoDocumentoRouter"));
-app.use("/api", require("./routers/jornadaRouter"));
 app.use("/api", require("./routers/entradaSalidaAprendizRouter"));
-app.use("/api", require("./routers/configGrRouter"));
 app.use("/api", require("./routers/centroFormacionRouter"));
 app.use("/api", require("./routers/notificacionRouter"));
 app.use("/api", require("./routers/soporteRouter"));

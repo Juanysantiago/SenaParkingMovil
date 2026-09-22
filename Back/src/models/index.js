@@ -6,9 +6,6 @@ const SolicitudCarnet = require("./aprendiz/SolicitudCarnet");
 
 const TipoDocumento = require("./TipoDocumento");
 
-const Jornada = require("./Jornada");
-
-const ConfigGr = require("./ConfigGr");
 
 const EntradaSalidaAprendiz = require("./EntradaSalidaAprendiz");
 
@@ -133,8 +130,6 @@ module.exports = {
   SolicitudCarnet,
   SolicitudActualizacion,
   TipoDocumento,
-  Jornada,
-  ConfigGr,
   EntradaSalidaAprendiz,
   Carnet,
   CentroFormacion,
