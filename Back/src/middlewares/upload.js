@@ -1,44 +1,43 @@
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const crypto = require("crypto");
 
-// ============================================================
-// CREAR CARPETA UPLOADS SI NO EXISTE
-// ============================================================
+// =================================================
+// CREAR CARPETA DE CARGA SI NO EXISTE
+// =================================================
+const rutaCarga = path.join(process.cwd(), "uploads");
 
-const uploadPath = path.join(process.cwd(), "uploads");
-
-if (!fs.existsSync(uploadPath)) {
-  fs.mkdirSync(uploadPath, {
+if (!fs.existsSync(rutaCarga)) {
+  fs.mkdirSync(rutaCarga, {
     recursive: true,
   });
 }
 
-// ============================================================
+// =================================================
 // CONFIGURACIÓN DEL ALMACENAMIENTO
-// ============================================================
-
+// =================================================
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadPath);
+  destination: (req, archivo, cb) => {
+    cb(null, rutaCarga);
   },
 
-  filename: (req, file, cb) => {
+  filename: (req, archivo, cb) => {
     const extension = path
-      .extname(file.originalname)
+      .extname(archivo.originalname)
       .toLowerCase();
 
+    // Nombre único mediante aleatoriedad criptográfica
     const nombreArchivo =
-      `${Date.now()}-${Math.round(Math.random() * 1e9)}${extension}`;
+      `${Date.now()}-${crypto.randomUUID()}${extension}`;
 
     cb(null, nombreArchivo);
   },
 });
 
-// ============================================================
+// =================================================
 // TIPOS DE ARCHIVO PERMITIDOS
-// ============================================================
-
+// =================================================
 const tiposPermitidos = [
   // Imágenes
   "image/jpeg",
@@ -63,42 +62,39 @@ const tiposPermitidos = [
   "text/plain",
 ];
 
-// ============================================================
-// VALIDACIÓN DE ARCHIVOS
-// ============================================================
-
-const fileFilter = (req, file, cb) => {
-  if (!tiposPermitidos.includes(file.mimetype)) {
-    console.log("ARCHIVO RECHAZADO:");
-    console.log("Nombre:", file.originalname);
-    console.log("Tipo:", file.mimetype);
-
+// =================================================
+// VALIDACIÓN DEL TIPO DE ARCHIVO
+// =================================================
+const fileFilter = (req, archivo, cb) => {
+  if (!tiposPermitidos.includes(archivo.mimetype)) {
     return cb(
       new Error(
-        `Tipo de archivo no permitido: ${file.mimetype}`
-      ),
-      false
+        `Tipo de archivo no permitido: ${archivo.mimetype}`
+      )
     );
   }
 
   cb(null, true);
 };
 
-// ============================================================
+// =================================================
 // CONFIGURACIÓN DE MULTER
-// ============================================================
-
+// =================================================
 const upload = multer({
   storage,
-
   fileFilter,
-
   limits: {
     // Máximo 10 MB por archivo
     fileSize: 10 * 1024 * 1024,
 
     // Máximo 20 archivos por solicitud
     files: 20,
+
+    // Máximo 20 partes de formulario
+    parts: 20,
+
+    // Máximo 10 campos de texto
+    fields: 10,
   },
 });
 
