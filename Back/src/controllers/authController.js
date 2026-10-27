@@ -163,12 +163,15 @@ const register = async (req, res) => {
       });
     }
 
-    if (!esTextoValido(tipoDocumento)) {
-      return res.status(400).json({
-        message:
-          "El tipo de documento es obligatorio"
-      });
-    }
+ if (
+  tipoDocumento === undefined ||
+  tipoDocumento === null ||
+  tipoDocumento === ""
+) {
+  return res.status(400).json({
+    message: "El tipo de documento es obligatorio"
+  });
+}
 
     if (!esTextoValido(nombres)) {
       return res.status(400).json({

@@ -1,11 +1,5 @@
 {
-  "users": [
-    {
-      "email": "angel@gmail.com",
-      "password": "$2a$10$O7BUzbBvcuip3YVJlO7zuOsfRJ/.ov5/E9IqPgDub4YwOWrr4.SLO",
-      "id": 1
-    }
-  ],
+  "users": [],
   "tipo-documentos": [
     {
       "id": "1",
