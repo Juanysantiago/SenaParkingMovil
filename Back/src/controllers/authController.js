@@ -915,11 +915,11 @@ const recuperarPassword = async (
     }
 
 
-    const pin =
-      Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
+    const crypto = require("crypto");
+
+const pin = crypto
+  .randomInt(100000, 1000000)
+  .toString();
 
 
     user.pinRecuperacion =
@@ -1234,11 +1234,11 @@ const reenviarPin = async (
     }
 
 
-    const pin =
-      Math.floor(
-        100000 +
-        Math.random() * 900000
-      ).toString();
+    const crypto = require("crypto");
+
+const pin = crypto
+  .randomInt(100000, 1000000)
+  .toString();
 
 
     user.pinRecuperacion =
