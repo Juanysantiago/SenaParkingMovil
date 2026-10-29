@@ -80,7 +80,7 @@ const fileFilter = (req, archivo, cb) => {
 // =================================================
 // CONFIGURACIÓN DE MULTER
 // =================================================
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB por archivo
+const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB // 10 MB por archivo
 const MAX_FILES = 20;
 
 const upload = multer({

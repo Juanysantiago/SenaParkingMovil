@@ -29,9 +29,8 @@ app.use(
 /* COOKIES */
 app.use(cookieParser());
 
-/* BODY PARSER */
 /* BODY PARSER: LIMITAR TAMAÑO DE LAS PETICIONES */
-const MAX_BODY_SIZE = "1mb";
+const MAX_BODY_SIZE = "2mb";
 
 app.use(express.json({
   limit: MAX_BODY_SIZE,
