@@ -90,12 +90,11 @@ const upload = multer({
     // Máximo 20 archivos por solicitud
     files: 20,
 
-    // Máximo 20 partes de formulario
-    parts: 20,
-
     // Máximo 10 campos de texto
     fields: 10,
+
+    // Máximo 30 partes del formulario
+    parts: 30,
   },
 });
-
 module.exports = upload;
