@@ -30,8 +30,18 @@ app.use(
 app.use(cookieParser());
 
 /* BODY PARSER */
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/* BODY PARSER: LIMITAR TAMAÑO DE LAS PETICIONES */
+const MAX_BODY_SIZE = "1mb";
+
+app.use(express.json({
+  limit: MAX_BODY_SIZE,
+}));
+
+app.use(express.urlencoded({
+  extended: true,
+  limit: MAX_BODY_SIZE,
+  parameterLimit: 1000,
+}));
 
 /* ARCHIVOS ESTÁTICOS */
 app.use(
