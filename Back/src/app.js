@@ -1,5 +1,5 @@
-require("dotenv").config();
 
+require("dotenv").config();
 
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
@@ -10,6 +10,7 @@ const cookieParser = require("cookie-parser");
 const sequelize = require("./config/database");
 
 const app = express();
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /* MODELOS */
@@ -29,18 +30,22 @@ app.use(
 /* COOKIES */
 app.use(cookieParser());
 
-/* BODY PARSER: LIMITAR TAMAÑO DE LAS PETICIONES */
+/* BODY PARSER */
 const MAX_BODY_SIZE = "2mb";
 
-app.use(express.json({
-  limit: MAX_BODY_SIZE,
-}));
+app.use(
+  express.json({
+    limit: MAX_BODY_SIZE,
+  })
+);
 
-app.use(express.urlencoded({
-  extended: true,
-  limit: MAX_BODY_SIZE,
-  parameterLimit: 1000,
-}));
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: MAX_BODY_SIZE,
+    parameterLimit: 1000,
+  })
+);
 
 /* ARCHIVOS ESTÁTICOS */
 app.use(
@@ -87,24 +92,21 @@ app.use(
   require("./routers/reportesRouter")
 );
 
-/* BASE DE DATOS */
-sequelize
-  .authenticate()
-  .then(async () => {
-    console.log("✅ DB conectada");
-
-    // IMPORTANTE:
-    // No usar alter: true porque estaba creando índices duplicados.
-    await sequelize.sync();
-
-    console.log("✅ Tablas sincronizadas");
-  })
-  .catch((err) => {
-    console.error("❌ Error de base de datos:", err);
-  });
-
+/* INICIAR SERVIDOR */
 const PORT = process.env.PORT || 3000;
 
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
-});
+sequelize.authenticate()
+  .then(() => {
+    console.log("Conexión a MySQL establecida correctamente.");
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+      console.log(`Documentación Swagger: http://localhost:${PORT}/api-docs`);
+    });
+  })
+  .catch((error) => {
+    console.error("Error al conectar con MySQL:", error);
+    process.exit(1);
+  });
+
+module.exports = app;

@@ -1,0 +1,31 @@
+
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Variables de entorno
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Reportes y cobertura
+reports/
+**/reports/
+coverage/
+**/coverage/
+
+# Archivos de registro
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Cypress
+**/cypress/screenshots/
+**/cypress/videos/
+**/cypress/downloads/
