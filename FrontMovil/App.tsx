@@ -3,19 +3,19 @@ import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from './src/data/api';
+import { api } from './src/models/api/api';
 
-import HomeScreen from './src/screens/HomeScreen';
-import LoginScreen from './src/screens/LoginScreen';
-import RegisterScreen from './src/screens/RegisterScreen';
-import RecoveryScreen from './src/screens/RecoveryScreen';
-import VerifyCodeScreen from './src/screens/VerifyCodeScreen';
-import DashboardScreen from './src/screens/DashboardScreen';
-import FeatureScreen from './src/screens/FeatureScreen';
-import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
-import CarnetScreen from './src/screens/CarnetScreen';
-import ScannerScreen from './src/screens/ScannerScreen';
-import PerfilAprendiz from './src/screens/PerfilAprendiz';
+import HomeScreen from './src/views/screens/aprendiz/HomeScreen';
+import LoginScreen from './src/views/screens/auth/LoginScreen';
+import RegisterScreen from './src/views/screens/auth/RegisterScreen';
+import RecoveryScreen from './src/views/screens/auth/RecoveryScreen';
+import VerifyCodeScreen from './src/views/screens/auth/VerifyCodeScreen';
+import DashboardScreen from './src/views/screens/admin/DashboardScreen';
+import FeatureScreen from './src/views/screens/admin/FeatureScreen';
+import ResetPasswordScreen from './src/views/screens/auth/ResetPasswordScreen';
+import CarnetScreen from './src/views/screens/aprendiz/CarnetScreen';
+import ScannerScreen from './src/views/screens/guarda/ScannerScreen';
+import PerfilAprendiz from './src/views/screens/aprendiz/PerfilAprendiz';
 
 export type RootStackParamList = {
   Home: undefined;
