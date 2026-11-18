@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Image,
   SafeAreaView,
@@ -7,70 +7,28 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { RootStackParamList } from '../../../../App';
-import { auth, messageOf } from '../../../models/api/api';
 import { colors, common } from '../../theme';
 import Field from '../../components/Field';
 import Button from '../../components/Button';
+import { useLoginViewModel } from '../../../viewmodels/useLoginViewModel';
 
 type P = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: P) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [rol, setRol] = useState('aprendiz');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const login = async () => {
-    if (!email.trim() || !password.trim()) {
-      setError('El correo y la contraseña son obligatorios');
-      return;
-    }
-
-    setError('');
-    setLoading(true);
-
-    try {
-      const r = await auth.login(email.trim(), password, rol);
-
-      console.log('LOGIN RESPUESTA:', r.data);
-
-      if (!r.data?.accessToken) {
-        setError(
-          r.data?.message ||
-            'El servidor no devolvió el token de acceso'
-        );
-        return;
-      }
-
-      await AsyncStorage.setItem(
-        'accessToken',
-        r.data.accessToken
-      );
-
-      if (r.data.user) {
-        await AsyncStorage.setItem(
-          'user',
-          JSON.stringify(r.data.user)
-        );
-      }
-
-      navigation.replace('Dashboard');
-    } catch (e: any) {
-      console.log(
-        'ERROR LOGIN:',
-        e?.response?.data || e?.message || e
-      );
-
-      setError(messageOf(e));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const {
+    email,
+    setEmail,
+    password,
+    setPassword,
+    rol,
+    setRol,
+    loading,
+    error,
+    login,
+  } = useLoginViewModel(() => navigation.replace('Dashboard'));
 
   return (
     <SafeAreaView style={common.screen}>
@@ -81,16 +39,9 @@ export default function LoginScreen({ navigation }: P) {
           justifyContent: 'center',
         }}
       >
-        <View
-          style={[
-            common.card,
-            {
-              padding: 24,
-            },
-          ]}
-        >
+        <View style={[common.card, { padding: 24 }]}>
           <Image
-            source={require('../../assets/logo-sena-parking.png')}
+            source={require('../../../../assets/logo-sena-parking.png')}
             style={{
               width: 120,
               height: 120,
@@ -111,14 +62,7 @@ export default function LoginScreen({ navigation }: P) {
             SENA PARKING
           </Text>
 
-          <Text
-            style={[
-              common.label,
-              {
-                marginTop: 0,
-              },
-            ]}
-          >
+          <Text style={[common.label, { marginTop: 0 }]}>
             ROL
           </Text>
 
@@ -129,11 +73,7 @@ export default function LoginScreen({ navigation }: P) {
               marginBottom: 5,
             }}
           >
-            {[
-              'aprendiz',
-              'guarda',
-              'administrador',
-            ].map((x) => (
+            {['aprendiz', 'guarda', 'administrador'].map((x) => (
               <TouchableOpacity
                 key={x}
                 onPress={() => setRol(x)}
@@ -143,13 +83,9 @@ export default function LoginScreen({ navigation }: P) {
                   borderRadius: 9,
                   borderWidth: 1,
                   borderColor:
-                    rol === x
-                      ? colors.primary
-                      : colors.border,
+                    rol === x ? colors.primary : colors.border,
                   backgroundColor:
-                    rol === x
-                      ? colors.light
-                      : '#fff',
+                    rol === x ? colors.light : '#fff',
                 }}
               >
                 <Text
@@ -158,9 +94,7 @@ export default function LoginScreen({ navigation }: P) {
                     textAlign: 'center',
                     fontWeight: '700',
                     color:
-                      rol === x
-                        ? colors.dark
-                        : colors.text,
+                      rol === x ? colors.dark : colors.text,
                   }}
                 >
                   {x}
@@ -185,11 +119,7 @@ export default function LoginScreen({ navigation }: P) {
             secureTextEntry
           />
 
-          <View
-            style={{
-              marginTop: 20,
-            }}
-          >
+          <View style={{ marginTop: 20 }}>
             <Button
               title="INICIAR SESIÓN"
               onPress={login}
@@ -201,10 +131,7 @@ export default function LoginScreen({ navigation }: P) {
             <Text
               style={[
                 common.error,
-                {
-                  marginTop: 12,
-                  textAlign: 'center',
-                },
+                { marginTop: 12, textAlign: 'center' },
               ]}
             >
               {error}
@@ -219,9 +146,7 @@ export default function LoginScreen({ navigation }: P) {
             }}
           >
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Register')
-              }
+              onPress={() => navigation.navigate('Register')}
             >
               <Text
                 style={{
@@ -234,9 +159,7 @@ export default function LoginScreen({ navigation }: P) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Recovery')
-              }
+              onPress={() => navigation.navigate('Recovery')}
             >
               <Text
                 style={{
@@ -249,9 +172,7 @@ export default function LoginScreen({ navigation }: P) {
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() =>
-                navigation.navigate('Home')
-              }
+              onPress={() => navigation.navigate('Home')}
               style={{
                 marginTop: 4,
                 paddingVertical: 8,
