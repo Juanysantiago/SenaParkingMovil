@@ -1,17 +1,39 @@
+
 // backend/nodejs_express/config/config.js
+
 const envFile = process.env.NODE_ENV === 'test' ? '.env.test' : '.env';
 require('dotenv').config({ path: envFile });
 
-const mysql = require('mysql');
-const db = mysql.createConnection({
+const mysql = require('mysql2');
+
+const isProduction = process.env.NODE_ENV === 'production';
+
+const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  port: process.env.DB_PORT
-});
+  port: process.env.DB_PORT || 3306,
+};
+
+// Configuración SSL para Azure en producción
+if (isProduction) {
+  dbConfig.ssl = {
+    rejectUnauthorized: false
+  };
+}
+
+const db = mysql.createConnection(dbConfig);
+
 db.connect(function(err) {
-  if (err) throw err;
-  console.log(`Base de datos conectada: ${process.env.DB_NAME}`); // Muestra a qué BD se conectó
+  if (err) {
+    console.error('Error de conexión a la BD:', err);
+    throw err;
+  }
+
+  console.log(
+    `Base de datos conectada: ${process.env.DB_NAME} (${isProduction ? 'Producción' : 'Desarrollo'})`
+  );
 });
+
 module.exports = db;

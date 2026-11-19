@@ -1,19 +1,29 @@
+
+// backend/nodejs_express/server.js
+
 const app = require('./app');
 const sequelize = require('./config/database');
 
-sequelize
-  .authenticate()
-  .then(async () => {
+const PORT = process.env.PORT || 8080;
+
+async function startServer() {
+  try {
+    await sequelize.authenticate();
     console.log('✅ DB conectada');
-    // No usar alter: true para evitar índices duplicados
+
+    // Sincronizar las tablas
     await sequelize.sync();
     console.log('✅ Tablas sincronizadas');
-  })
-  .catch((err) => {
-    console.error('❌ Error de base de datos:', err);
-  });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor ejecutándose en puerto ${PORT}`);
-});
+    // Iniciar servidor para Azure y desarrollo local
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`🚀 Servidor ejecutándose en el puerto ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error('❌ Error al iniciar el servidor:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

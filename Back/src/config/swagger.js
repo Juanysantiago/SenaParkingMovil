@@ -1,4 +1,9 @@
+
+// backend/nodejs_express/config/swagger.js
+
 const swaggerJsdoc = require("swagger-jsdoc");
+
+const isProduction = process.env.NODE_ENV === "production";
 
 const swaggerSpec = swaggerJsdoc({
   definition: {
@@ -12,8 +17,13 @@ const swaggerSpec = swaggerJsdoc({
 
     servers: [
       {
-        url: "http://localhost:3000",
-        description: "Servidor local",
+        url: isProduction
+          ? "api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net"
+          : `http://localhost:${process.env.PORT || 3000}`,
+
+        description: isProduction
+          ? "Servidor en Azure"
+          : "Servidor local",
       },
     ],
 
