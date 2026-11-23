@@ -5,9 +5,22 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
    CONFIGURACIÓN DEL BACKEND
    ========================================================= */
 
+// Detectar si estamos en producción o desarrollo
+const isProduction = !__DEV__;
+
+// URL del backend en Azure
+const PROD_URL =
+  'https://api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net';
+
+// URL del backend local
+// Conservamos tu IP para que el celular pueda conectarse
+// al servidor local mediante la misma red Wi-Fi.
+const DEV_URL = 'http://10.76.102.141:3000';
+
+// Variable de entorno opcional
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
-  'http://10.76.102.141:3000';
+  (isProduction ? PROD_URL : DEV_URL);
 
 /* =========================================================
    AXIOS
@@ -25,26 +38,25 @@ export const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-     const token = await AsyncStorage.getItem('accessToken');
+      const token = await AsyncStorage.getItem('accessToken');
 
-console.log('🔑 TOKEN GUARDADO:', token ? 'SÍ' : 'NO');
+      console.log('TOKEN GUARDADO:', token ? 'SÍ' : 'NO');
 
-if (token) {
-  config.headers = config.headers || {};
-  config.headers.Authorization = `Bearer ${token}`;
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
 
-  console.log(
-    '🔐 AUTH ENVIADO:',
-    `Bearer ${token.substring(0, 20)}...`
-  );
-}
+        console.log(
+          'AUTH ENVIADO:',
+          `Bearer ${token.substring(0, 20)}...`
+        );
+      }
 
       /*
        * Cuando enviamos FormData no establecemos manualmente
        * Content-Type.
        *
        * React Native/Axios genera automáticamente:
-       *
        * multipart/form-data; boundary=...
        */
 
@@ -56,12 +68,12 @@ if (token) {
       }
 
       console.log(
-        '➡️ PETICIÓN:',
+        'PETICIÓN:',
         config.method?.toUpperCase(),
         `${config.baseURL}${config.url}`
       );
     } catch (error) {
-      console.log('❌ Error en interceptor:', error);
+      console.log('Error en interceptor:', error);
     }
 
     return config;
@@ -76,7 +88,7 @@ if (token) {
    ========================================================= */
 
 export const messageOf = (error: any): string => {
-  console.log('❌ ERROR AXIOS:', error);
+  console.log('ERROR AXIOS:', error);
 
   if (error?.response) {
     console.log('Status:', error.response.status);

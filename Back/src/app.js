@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const swaggerUi = require("swagger-ui-express");
@@ -52,6 +51,15 @@ app.use(
   "/uploads",
   express.static(path.resolve(__dirname, "../uploads"))
 );
+
+/* RUTA PRINCIPAL */
+app.get("/", (req, res) => {
+  res.status(200).json({
+    mensaje: "SENAPARKING API funcionando correctamente",
+    estado: "Activo",
+    documentacion: "/api-docs"
+  });
+});
 
 /* RUTAS */
 app.use("/auth", require("./routers/authRouter"));

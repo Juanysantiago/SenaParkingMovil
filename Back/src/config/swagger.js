@@ -18,8 +18,8 @@ const swaggerSpec = swaggerJsdoc({
     servers: [
       {
         url: isProduction
-          ? "api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net"
-          : `http://localhost:${process.env.PORT || 3000}`,
+  ? "https://api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net"
+  : `http://localhost:${process.env.PORT || 3000}`,
 
         description: isProduction
           ? "Servidor en Azure"
