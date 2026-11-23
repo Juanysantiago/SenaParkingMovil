@@ -1,12 +1,13 @@
 
-// backend/nodejs_express/config/database.js
-
 const { Sequelize } = require("sequelize");
 
-const envFile = process.env.NODE_ENV === "test" ? ".env.test" : ".env";
+const envFile =
+  process.env.NODE_ENV === "test" ? ".env.test" : ".env";
+
 require("dotenv").config({ path: envFile });
 
 const isProduction = process.env.NODE_ENV === "production";
+const useSSL = process.env.DB_SSL === "true";
 
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -15,20 +16,21 @@ const sequelize = new Sequelize(
   {
     host: process.env.DB_HOST,
     dialect: "mysql",
-    port: process.env.DB_PORT || 3306,
+    port: Number(process.env.DB_PORT || 3306),
 
-    logging: isProduction || process.env.NODE_ENV === "test"
-      ? false
-      : console.log,
+    logging:
+      isProduction || process.env.NODE_ENV === "test"
+        ? false
+        : console.log,
 
-    ...(isProduction && {
+    ...(useSSL && {
       dialectOptions: {
         ssl: {
-          require: true,
-          rejectUnauthorized: false,
-        },
-      },
-    }),
+          minVersion: "TLSv1.2",
+          rejectUnauthorized: true
+        }
+      }
+    })
   }
 );
 

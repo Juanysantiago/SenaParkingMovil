@@ -1,0 +1,4 @@
+{
+    "appService.defaultWebAppToDeploy": "/subscriptions/c3f20e2c-f214-4f8b-8757-e43601acc30f/resourceGroups/src-project-senaparking/providers/Microsoft.Web/sites/api-project-senaparking",
+    "appService.deploySubpath": "Back"
+}

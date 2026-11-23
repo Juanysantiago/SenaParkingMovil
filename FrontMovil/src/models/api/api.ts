@@ -8,19 +8,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Detectar si estamos en producción o desarrollo
 const isProduction = !__DEV__;
 
-// URL del backend en Azure
+// Backend en Azure
 const PROD_URL =
-  'https://api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net';
+  'https://api-project-senaparking-crhgfvaaaxhgesbp.azurewebsites.net';
 
-// URL del backend local
-// Conservamos tu IP para que el celular pueda conectarse
-// al servidor local mediante la misma red Wi-Fi.
+// Backend local
 const DEV_URL = 'http://10.76.102.141:3000';
 
-// Variable de entorno opcional
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL ||
-  (isProduction ? PROD_URL : DEV_URL);
+// Seleccionar automáticamente el servidor
+export const API_URL = PROD_URL;
+
+
 
 /* =========================================================
    AXIOS
