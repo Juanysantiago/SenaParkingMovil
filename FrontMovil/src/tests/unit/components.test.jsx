@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, screen } from '@testing-library/react-native';
-import Button from '../../components/Button';
+import Button from '../../views/components/Button';
 
 describe('Nivel 1: Pruebas Unitarias - Frontend', () => {
 
