@@ -18,7 +18,8 @@ const app = express();
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://web-project-senaparking-g6bccugpf8bagmgc.spaincentral-01.azurewebsites.net"
+  "https://web-project-senaparking-g6bccugpf8bagmgc.spaincentral-01.azurewebsites.net",
+  "https://api-project-senaparking-crhgfvaaaxhgesbp.spaincentral-01.azurewebsites.net"
 ];
 
 const corsOptions = {
@@ -38,16 +39,28 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-/* MODELOS */
+/* =====================================================
+   MODELOS
+===================================================== */
+
 require("./models");
 
-/* SWAGGER */
+/* =====================================================
+   SWAGGER
+===================================================== */
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-/* COOKIES */
+/* =====================================================
+   COOKIES
+===================================================== */
+
 app.use(cookieParser());
 
-/* BODY PARSER */
+/* =====================================================
+   BODY PARSER
+===================================================== */
+
 const MAX_BODY_SIZE = "2mb";
 
 app.use(express.json({
@@ -60,13 +73,19 @@ app.use(express.urlencoded({
   parameterLimit: 1000
 }));
 
-/* ARCHIVOS ESTÁTICOS */
+/* =====================================================
+   ARCHIVOS ESTÁTICOS
+===================================================== */
+
 app.use(
   "/uploads",
   express.static(path.resolve(__dirname, "../uploads"))
 );
 
-/* RUTA PRINCIPAL */
+/* =====================================================
+   RUTA PRINCIPAL
+===================================================== */
+
 app.get("/", (req, res) => {
   res.status(200).json({
     mensaje: "SENAPARKING API funcionando correctamente",
@@ -75,7 +94,10 @@ app.get("/", (req, res) => {
   });
 });
 
-/* RUTAS */
+/* =====================================================
+   RUTAS
+===================================================== */
+
 app.use("/auth", require("./routers/authRouter"));
 
 app.use("/api", require("./routers/tipoDocumentoRouter"));
@@ -104,7 +126,7 @@ sequelize.authenticate()
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Servidor ejecutándose en el puerto ${PORT}`);
-      console.log(`Documentación Swagger: /api-docs`);
+      console.log("Documentación Swagger: /api-docs");
     });
   })
   .catch((error) => {
