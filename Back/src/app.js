@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const swaggerUi = require("swagger-ui-express");
@@ -10,21 +11,38 @@ const sequelize = require("./config/database");
 
 const app = express();
 
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+/* =====================================================
+   CORS
+===================================================== */
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://web-project-senaparking-g6bccugpf8bagmgc.spaincentral-01.azurewebsites.net"
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Permitir solicitudes sin Origin (Swagger, Postman y procesos internos)
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn("Origen bloqueado por CORS:", origin);
+    return callback(new Error("Origen no permitido por CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+};
+
+app.use(cors(corsOptions));
 
 /* MODELOS */
 require("./models");
 
-/* CORS */
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "http://127.0.0.1:5173"
-    ],
-    credentials: true,
-  })
-);
+/* SWAGGER */
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /* COOKIES */
 app.use(cookieParser());
@@ -32,19 +50,15 @@ app.use(cookieParser());
 /* BODY PARSER */
 const MAX_BODY_SIZE = "2mb";
 
-app.use(
-  express.json({
-    limit: MAX_BODY_SIZE,
-  })
-);
+app.use(express.json({
+  limit: MAX_BODY_SIZE
+}));
 
-app.use(
-  express.urlencoded({
-    extended: true,
-    limit: MAX_BODY_SIZE,
-    parameterLimit: 1000,
-  })
-);
+app.use(express.urlencoded({
+  extended: true,
+  limit: MAX_BODY_SIZE,
+  parameterLimit: 1000
+}));
 
 /* ARCHIVOS ESTÁTICOS */
 app.use(
@@ -70,37 +84,18 @@ app.use("/api", require("./routers/centroFormacionRouter"));
 app.use("/api", require("./routers/notificacionRouter"));
 app.use("/api", require("./routers/soporteRouter"));
 
-app.use(
-  "/api/carnet",
-  require("./routers/carnetRouter")
-);
+app.use("/api/carnet", require("./routers/carnetRouter"));
+app.use("/api/vehiculos", require("./routers/vehiculoRouter"));
 
-app.use(
-  "/api/vehiculos",
-  require("./routers/vehiculoRouter")
-);
+app.use("/api", require("./routers/aprendiz/solicitudCarnetRouter"));
+app.use("/api", require("./routers/aprendiz/solicitudActualizacionRouter"));
+app.use("/api", require("./routers/aprendiz/reportesRouter"));
+app.use("/api", require("./routers/reportesRouter"));
 
-app.use(
-  "/api",
-  require("./routers/aprendiz/solicitudCarnetRouter")
-);
+/* =====================================================
+   INICIAR SERVIDOR
+===================================================== */
 
-app.use(
-  "/api",
-  require("./routers/aprendiz/solicitudActualizacionRouter")
-);
-
-app.use(
-  "/api",
-  require("./routers/aprendiz/reportesRouter")
-);
-
-app.use(
-  "/api",
-  require("./routers/reportesRouter")
-);
-
-/* INICIAR SERVIDOR */
 const PORT = process.env.PORT || 3000;
 
 sequelize.authenticate()
@@ -108,8 +103,8 @@ sequelize.authenticate()
     console.log("Conexión a MySQL establecida correctamente.");
 
     app.listen(PORT, "0.0.0.0", () => {
-      console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
-      console.log(`Documentación Swagger: http://localhost:${PORT}/api-docs`);
+      console.log(`Servidor ejecutándose en el puerto ${PORT}`);
+      console.log(`Documentación Swagger: /api-docs`);
     });
   })
   .catch((error) => {

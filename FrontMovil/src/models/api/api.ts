@@ -1,86 +1,37 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-/* =========================================================
-   CONFIGURACIÓN DEL BACKEND
-   ========================================================= */
+export const API_URL = (
+  process.env.EXPO_PUBLIC_API_URL || ''
+).replace(/\/+$/, '');
 
-// Detectar si estamos en producción o desarrollo
-const isProduction = !__DEV__;
-
-// Backend en Azure
-const PROD_URL =
-  'https://api-project-senaparking-crhgfvaaaxhgesbp.azurewebsites.net';
-
-// Backend local
-const DEV_URL = 'http://10.76.102.141:3000';
-
-// Seleccionar automáticamente el servidor
-export const API_URL = PROD_URL;
-
-
-
-/* =========================================================
-   AXIOS
-   ========================================================= */
+if (!API_URL) {
+  throw new Error('No se configuró EXPO_PUBLIC_API_URL');
+}
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 15000,
+  timeout: 30000,
+  headers: {
+    Accept: 'application/json',
+  },
 });
 
-/* =========================================================
-   TOKEN DE AUTENTICACIÓN
-   ========================================================= */
+api.interceptors.request.use(async (config) => {
+  const token = await AsyncStorage.getItem('accessToken');
 
-api.interceptors.request.use(
-  async (config) => {
-    try {
-      const token = await AsyncStorage.getItem('accessToken');
-
-      console.log('TOKEN GUARDADO:', token ? 'SÍ' : 'NO');
-
-      if (token) {
-        config.headers = config.headers || {};
-        config.headers.Authorization = `Bearer ${token}`;
-
-        console.log(
-          'AUTH ENVIADO:',
-          `Bearer ${token.substring(0, 20)}...`
-        );
-      }
-
-      /*
-       * Cuando enviamos FormData no establecemos manualmente
-       * Content-Type.
-       *
-       * React Native/Axios genera automáticamente:
-       * multipart/form-data; boundary=...
-       */
-
-      if (config.data instanceof FormData) {
-        if (config.headers) {
-          delete config.headers['Content-Type'];
-          delete config.headers['content-type'];
-        }
-      }
-
-      console.log(
-        'PETICIÓN:',
-        config.method?.toUpperCase(),
-        `${config.baseURL}${config.url}`
-      );
-    } catch (error) {
-      console.log('Error en interceptor:', error);
-    }
-
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
 
+  console.log(
+    'SOLICITUD:',
+    config.method?.toUpperCase(),
+    `${config.baseURL}${config.url}`
+  );
+
+  return config;
+});
 /* =========================================================
    MANEJO DE MENSAJES DE ERROR
    ========================================================= */
